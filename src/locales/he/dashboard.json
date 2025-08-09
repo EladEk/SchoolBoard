@@ -1,0 +1,14 @@
+{
+  "tabs": {
+    "users": "משתמשים",
+    "classes": "כיתות",
+    "lessons": "שיעורים",
+    "timetable": "מערכת שעות"
+  },
+  "dashboard": {
+    "title": "לוח ניהול",
+    "subtitle": "ניהול משתמשים, כיתות, שיעורים ומערכת שבועית.",
+    "logout": "התנתקות",
+    "roleSeparator": " · "
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "title": "מערכת שעות",
+  "headers": {
+    "timeDay": "שעה / יום"
+  },
+  "labels": {
+    "class": "כיתה",
+    "lesson": "שיעור",
+    "save": "שמירה",
+    "cancel": "ביטול",
+    "placed": "מיקומים לשיעור שבחרת: <b>{{count}}</b>",
+    "loadedEntries": "נטענו {{count}} משבצות.",
+    "selectLessonFirst": "בחר שיעור לפני סימון משבצת."
+  },
+  "legend": {
+    "selectedExisting": "שיעור שנבחר (קיים)",
+    "taken": "הכיתה תפוסה לשיעור אחר",
+    "pending": "שינוי בהמתנה"
+  },
+  "emptyPrompt": "בחר כיתה כדי להתחיל לשבץ.",
+  "toasts": {
+    "saving": "שומר שינויים…",
+    "saved": "נשמר!",
+    "saveFailed": "שמירה נכשלה.",
+    "loadFailed": "טעינת המערכת נכשלה: {{msg}}",
+    "prepareFailed": "שגיאה בהכנה: {{msg}}",
+    "selectLessonFirst": "יש לבחור שיעור לפני סימון משבצת."
+  },
+  "days": ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"]
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDoc,
   collection,
@@ -12,10 +12,13 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
+import * as XLSX from 'xlsx';
+import styles from './LessonsAdmin.module.css';
+import { useTranslation } from 'react-i18next';
 
 type ToastState =
   | { show: false }
-  | { show: true; kind: 'success' | 'error'; message: string };
+  | { show: true; kind: 'success' | 'error' | 'info'; message: string };
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
 
@@ -24,6 +27,7 @@ type AppUser = {
   firstName?: string;
   lastName?: string;
   username?: string;
+  usernameLower?: string;
   role: Role;
 };
 
@@ -31,18 +35,18 @@ type LessonItem = {
   id: string; // Firestore doc id
   name: string;
 
-  // main teacher (required when isStudentTeacher === false)
-  teacherUserId?: string;
-  teacherFirstName?: string;
-  teacherLastName?: string;
-  teacherUsername?: string;
+  // main teacher
+  teacherUserId?: string | null;
+  teacherUsername?: string | null;
+  teacherFirstName?: string | null;
+  teacherLastName?: string | null;
 
   // When a student is the teacher for this lesson
   isStudentTeacher?: boolean;
-  studentUserId?: string;
-  studentFirstName?: string;
-  studentLastName?: string;
-  studentUsername?: string;
+  studentUserId?: string | null;
+  studentUsername?: string | null;
+  studentFirstName?: string | null;
+  studentLastName?: string | null;
 
   createdAt?: any;
 };
@@ -54,28 +58,36 @@ type EditState =
       id: string;
       name: string;
       isStudentTeacher: boolean;
-      teacherUserId: string | null;
-      studentUserId: string | null;
+      teacherUsername: string;
+      studentUsername: string;
     };
 
 // ---------------- Helpers ----------------
-function userLabel(u?: AppUser | null) {
+function labelFromUser(u?: AppUser | null) {
   if (!u) return '';
   const full = [u.firstName || '', u.lastName || ''].join(' ').replace(/\s+/g, ' ').trim();
   if (full && u.username) return `${full} (${u.username})`;
   if (full) return full;
   return u.username || '';
 }
-
-function compactName(first?: string, last?: string, username?: string) {
+function compactName(first?: string | null, last?: string | null, username?: string | null) {
   const full = [first || '', last || ''].join(' ').replace(/\s+/g, ' ').trim();
   if (full && username) return `${full} (${username})`;
   if (full) return full;
   return username || '';
 }
+function showToastFn(
+  setToast: React.Dispatch<React.SetStateAction<ToastState>>,
+  kind: 'success' | 'error' | 'info',
+  message: string,
+) {
+  setToast({ show: true, kind, message });
+  setTimeout(() => setToast({ show: false }), 2600);
+}
 
 // ---------------- Component ----------------
 export default function LessonsAdmin() {
+  const { t } = useTranslation();
   const [toast, setToast] = useState<ToastState>({ show: false });
 
   // Live datasets
@@ -87,8 +99,8 @@ export default function LessonsAdmin() {
   const [form, setForm] = useState({
     name: '',
     isStudentTeacher: false,
-    teacherUserId: '' as string,
-    studentUserId: '' as string,
+    teacherUsername: '' as string,
+    studentUsername: '' as string,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -96,26 +108,30 @@ export default function LessonsAdmin() {
   const [edit, setEdit] = useState<EditState>({ open: false });
   const [saving, setSaving] = useState(false);
 
+  // Excel import/export
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [busyImport, setBusyImport] = useState(false);
+
   // ---------- Load teachers / students / lessons ----------
   useEffect(() => {
     const unsubTeachers = onSnapshot(
       query(collection(db, 'appUsers'), where('role', '==', 'teacher')),
       (snap) => {
         const arr = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as AppUser[];
-        arr.sort((a, b) => (userLabel(a) || '').localeCompare(userLabel(b) || ''));
+        arr.sort((a, b) => (labelFromUser(a) || '').localeCompare(labelFromUser(b) || ''));
         setTeachers(arr);
       },
-      (err) => showToast('error', `Failed to load teachers: ${err.message}`)
+      (err) => showToastFn(setToast, 'error', t('lessons:toasts.loadTeachersFail', { msg: err.message }))
     );
 
     const unsubStudents = onSnapshot(
       query(collection(db, 'appUsers'), where('role', '==', 'student')),
       (snap) => {
         const arr = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as AppUser[];
-        arr.sort((a, b) => (userLabel(a) || '').localeCompare(userLabel(b) || ''));
+        arr.sort((a, b) => (labelFromUser(a) || '').localeCompare(labelFromUser(b) || ''));
         setStudents(arr);
       },
-      (err) => showToast('error', `Failed to load students: ${err.message}`)
+      (err) => showToastFn(setToast, 'error', t('lessons:toasts.loadStudentsFail', { msg: err.message }))
     );
 
     const unsubLessons = onSnapshot(
@@ -124,7 +140,7 @@ export default function LessonsAdmin() {
         const arr = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as LessonItem[];
         setLessons(arr);
       },
-      (err) => showToast('error', `Failed to load lessons: ${err.message}`)
+      (err) => showToastFn(setToast, 'error', t('lessons:toasts.loadLessonsFail', { msg: err.message }))
     );
 
     return () => {
@@ -132,19 +148,18 @@ export default function LessonsAdmin() {
       unsubStudents();
       unsubLessons();
     };
-  }, []);
+  }, [t]);
 
   const canCreate = useMemo(() => {
     if (!form.name.trim()) return false;
-    if (form.isStudentTeacher) {
-      return !!form.studentUserId;
-    }
-    return !!form.teacherUserId;
+    if (form.isStudentTeacher) return !!form.studentUsername;
+    return !!form.teacherUsername;
   }, [form]);
 
-  function showToast(kind: 'success' | 'error', message: string) {
-    setToast({ show: true, kind, message });
-    setTimeout(() => setToast({ show: false }), 2500);
+  function findByUsername(list: AppUser[], username: string | null | undefined) {
+    if (!username) return undefined;
+    const uLower = username.toLowerCase();
+    return list.find((u) => (u.username || '').toLowerCase() === uLower);
   }
 
   // ---------- Create ----------
@@ -155,65 +170,51 @@ export default function LessonsAdmin() {
     const name = form.name.trim();
     const isStudentTeacher = !!form.isStudentTeacher;
 
-    // Build payload
-    let payload: any = {
-      name,
-      isStudentTeacher,
-      createdAt: serverTimestamp(),
-    };
-
     try {
       setSubmitting(true);
 
+      let payload: any = {
+        name,
+        isStudentTeacher,
+        createdAt: serverTimestamp(),
+      };
+
       if (isStudentTeacher) {
-        const stu = students.find((s) => s.id === form.studentUserId);
-        if (!stu) {
-          showToast('error', 'Please select a student');
-          return;
-        }
+        const stu = findByUsername(students, form.studentUsername);
+        if (!stu) return showToastFn(setToast, 'error', t('lessons:toasts.selectValidStudent'));
         payload = {
           ...payload,
+          studentUsername: stu.username || '',
           studentUserId: stu.id,
           studentFirstName: stu.firstName || '',
           studentLastName: stu.lastName || '',
-          studentUsername: stu.username || '',
-          // teacher fields intentionally omitted
+          teacherUsername: null,
           teacherUserId: null,
           teacherFirstName: null,
           teacherLastName: null,
-          teacherUsername: null,
         };
       } else {
-        const tch = teachers.find((t) => t.id === form.teacherUserId);
-        if (!tch) {
-          showToast('error', 'Please select a teacher');
-          return;
-        }
+        const tch = findByUsername(teachers, form.teacherUsername);
+        if (!tch) return showToastFn(setToast, 'error', t('lessons:toasts.selectValidTeacher'));
         payload = {
           ...payload,
+          teacherUsername: tch.username || '',
           teacherUserId: tch.id,
           teacherFirstName: tch.firstName || '',
           teacherLastName: tch.lastName || '',
-          teacherUsername: tch.username || '',
-          // student fields intentionally omitted
+          studentUsername: null,
           studentUserId: null,
           studentFirstName: null,
           studentLastName: null,
-          studentUsername: null,
         };
       }
 
       await addDoc(collection(db, 'lessons'), payload);
 
-      setForm({
-        name: '',
-        isStudentTeacher: false,
-        teacherUserId: '',
-        studentUserId: '',
-      });
-      showToast('success', `Lesson "${name}" created`);
+      setForm({ name: '', isStudentTeacher: false, teacherUsername: '', studentUsername: '' });
+      showToastFn(setToast, 'success', t('lessons:toasts.created', { name }));
     } catch (err: any) {
-      showToast('error', `Create failed: ${err?.message || 'unknown error'}`);
+      showToastFn(setToast, 'error', t('lessons:toasts.createFail', { msg: err?.message || 'unknown' }));
     } finally {
       setSubmitting(false);
     }
@@ -226,81 +227,68 @@ export default function LessonsAdmin() {
       id: row.id,
       name: row.name || '',
       isStudentTeacher: !!row.isStudentTeacher,
-      teacherUserId: row.teacherUserId || null,
-      studentUserId: row.studentUserId || null,
+      teacherUsername: row.teacherUsername || '',
+      studentUsername: row.studentUsername || '',
     });
   }
-
-  function closeEdit() {
-    setEdit({ open: false });
-  }
+  function closeEdit() { setEdit({ open: false }); }
 
   const canSaveEdit = useMemo(() => {
-    if (!('open' in edit) || !edit.open) return false;
+    if (!edit.open) return false;
     if (!edit.name.trim()) return false;
-    if (edit.isStudentTeacher) {
-      return !!edit.studentUserId;
-    }
-    return !!edit.teacherUserId;
+    if (edit.isStudentTeacher) return !!edit.studentUsername;
+    return !!edit.teacherUsername;
   }, [edit]);
 
   async function saveEdit() {
-    if (!('open' in edit) || !edit.open) return;
-    if (!canSaveEdit || saving) return;
+    if (!edit.open || !canSaveEdit || saving) return;
 
-    const id = edit.id;
     const name = edit.name.trim();
     const isStudentTeacher = !!edit.isStudentTeacher;
-
-    let update: any = {
-      name,
-      isStudentTeacher,
-    };
 
     try {
       setSaving(true);
 
+      let update: any = {
+        name,
+        isStudentTeacher,
+      };
+
       if (isStudentTeacher) {
-        const stu = students.find((s) => s.id === edit.studentUserId);
-        if (!stu) {
-          showToast('error', 'Please select a student');
-          return;
-        }
+        const stu = findByUsername(students, edit.studentUsername);
+        if (!stu) return showToastFn(setToast, 'error', t('lessons:toasts.selectValidStudent'));
         update = {
           ...update,
+          studentUsername: stu.username || '',
           studentUserId: stu.id,
           studentFirstName: stu.firstName || '',
           studentLastName: stu.lastName || '',
-          studentUsername: stu.username || '',
+          teacherUsername: null,
           teacherUserId: null,
           teacherFirstName: null,
           teacherLastName: null,
-          teacherUsername: null,
         };
       } else {
-        const tch = teachers.find((t) => t.id === edit.teacherUserId);
-        if (!tch) {
-          showToast('error', 'Please select a teacher');
-          return;
-        }
+        const tch = findByUsername(teachers, edit.teacherUsername);
+        if (!tch) return showToastFn(setToast, 'error', t('lessons:toasts.selectValidTeacher'));
         update = {
           ...update,
+          teacherUsername: tch.username || '',
           teacherUserId: tch.id,
           teacherFirstName: tch.firstName || '',
           teacherLastName: tch.lastName || '',
-          teacherUsername: tch.username || '',
+          studentUsername: null,
           studentUserId: null,
           studentFirstName: null,
           studentLastName: null,
-          studentUsername: null,
         };
       }
 
-      await updateDoc(doc(db, 'lessons', id), update);
-      showToast('success', `Lesson "${name}" updated`);
+      await updateDoc(doc(db, 'lessons', edit.id), update);
+      showToastFn(setToast, 'success', t('lessons:toasts.updated', { name }));
       closeEdit();
     } catch (err: any) {
-      showToast('error', `Update failed: ${err?.message || 'unknown error'}`);
+      showToastFn(setToast, 'error', t('lessons:toasts.updateFail', { msg: err?.message || 'unknown' }));
     } finally {
       setSaving(false);
     }
@@ -308,23 +296,150 @@ export default function LessonsAdmin() {
 
   // ---------- Delete ----------
   async function removeLesson(id: string) {
+    try { await deleteDoc(doc(db, 'lessons', id)); showToastFn(setToast, 'success', t('lessons:toasts.deleted')); }
+    catch (err: any) { showToastFn(setToast, 'error', t('lessons:toasts.deleteFail', { msg: err?.message || 'unknown' })); }
+  }
+
+  // ---------- Excel: Export / Template / Import ----------
+  function openFilePicker() { fileInputRef.current?.click(); }
+
+  function downloadTemplate() {
+    const rows = [
+      { name: 'Math', isStudentTeacher: false, teacherUsername: 'teacher.alex', studentUsername: '' },
+      { name: '1:1 Neta & Alex', isStudentTeacher: true, teacherUsername: '', studentUsername: 'student.neta' },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: ['name', 'isStudentTeacher', 'teacherUsername', 'studentUsername'],
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'LessonsTemplate');
+    XLSX.writeFile(wb, 'lessons-template.xlsx');
+    showToastFn(setToast, 'info', t('lessons:toasts.templateDownloaded'));
+  }
+
+  function exportItems() {
+    const rows = lessons.map((l) => ({
+      name: l.name || '',
+      isStudentTeacher: !!l.isStudentTeacher,
+      teacherUsername: l.teacherUsername || '',
+      studentUsername: l.studentUsername || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: ['name', 'isStudentTeacher', 'teacherUsername', 'studentUsername'],
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Lessons');
+    XLSX.writeFile(wb, 'lessons-export.xlsx');
+    showToastFn(setToast, 'success', t('lessons:toasts.exported'));
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
     try {
-      await deleteDoc(doc(db, 'lessons', id));
-      showToast('success', 'Lesson deleted');
+      setBusyImport(true);
+      showToastFn(setToast, 'info', t('lessons:toasts.importing'));
+
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      const existingMap = new Map<string, LessonItem>();
+      for (const l of lessons) existingMap.set(l.name, l);
+
+      let created = 0, updated = 0, skipped = 0;
+      const reasons: string[] = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+
+        const name = String(r['name'] ?? r['Name'] ?? '').trim();
+        if (!name) { skipped++; reasons.push(`Row ${i + 2}: missing name`); continue; }
+
+        const isStudentTeacher =
+          String(r['isStudentTeacher'] ?? r['IsStudentTeacher'] ?? '').toLowerCase() === 'true';
+        const teacherUsername = String(r['teacherUsername'] ?? r['TeacherUsername'] ?? '').trim();
+        const studentUsername = String(r['studentUsername'] ?? r['StudentUsername'] ?? '').trim();
+        const legacyTeacherId = String(r['teacherUserId'] ?? r['TeacherUserId'] ?? '').trim();
+        const legacyStudentId = String(r['studentUserId'] ?? r['StudentUserId'] ?? '').trim();
+
+        let payload: any = { name, isStudentTeacher };
+
+        if (isStudentTeacher) {
+          let stu: AppUser | undefined =
+            studentUsername
+              ? students.find((s) => (s.username || '').toLowerCase() === studentUsername.toLowerCase())
+              : students.find((s) => s.id === legacyStudentId);
+
+          if (!stu) { skipped++; reasons.push(`Row ${i + 2}: student not found (username/id)`); continue; }
+
+          payload = {
+            ...payload,
+            studentUsername: stu.username || '',
+            studentUserId: stu.id,
+            studentFirstName: stu.firstName || '',
+            studentLastName: stu.lastName || '',
+            teacherUsername: null,
+            teacherUserId: null,
+            teacherFirstName: null,
+            teacherLastName: null,
+          };
+        } else {
+          let tch: AppUser | undefined =
+            teacherUsername
+              ? teachers.find((t) => (t.username || '').toLowerCase() === teacherUsername.toLowerCase())
+              : teachers.find((t) => t.id === legacyTeacherId);
+
+          if (!tch) { skipped++; reasons.push(`Row ${i + 2}: teacher not found (username/id)`); continue; }
+
+          payload = {
+            ...payload,
+            teacherUsername: tch.username || '',
+            teacherUserId: tch.id,
+            teacherFirstName: tch.firstName || '',
+            teacherLastName: tch.lastName || '',
+            studentUsername: null,
+            studentUserId: null,
+            studentFirstName: null,
+            studentLastName: null,
+          };
+        }
+
+        const existing = existingMap.get(name);
+        if (existing) {
+          await updateDoc(doc(db, 'lessons', existing.id), payload);
+          updated++;
+        } else {
+          await addDoc(collection(db, 'lessons'), { ...payload, createdAt: serverTimestamp() });
+          created++;
+        }
+      }
+
+      showToastFn(setToast, 'success', t('lessons:toasts.importDone', { created, updated, skipped }));
+      if (reasons.length) console.warn('Lessons import skipped:', reasons.join('\n'));
     } catch (err: any) {
-      showToast('error', `Delete failed: ${err?.message || 'unknown error'}`);
+      console.error(err);
+      showToastFn(setToast, 'error', t('lessons:toasts.importFail', { msg: err?.message || 'unknown' }));
+    } finally {
+      setBusyImport(false);
     }
   }
 
   // ---------- UI ----------
   return (
-    <div className="space-y-6">
+    <div className={styles.wrapper}>
       {/* Toast */}
       {toast.show && (
         <div
           className={[
-            'fixed z-50 left-1/2 -translate-x-1/2 top-6 px-4 py-2 rounded-xl shadow-lg',
-            toast.kind === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white',
+            styles.toast,
+            toast.kind === 'success'
+              ? styles.toastSuccess
+              : toast.kind === 'info'
+              ? styles.toastInfo
+              : styles.toastError,
           ].join(' ')}
           role="status"
           aria-live="polite"
@@ -333,17 +448,41 @@ export default function LessonsAdmin() {
         </div>
       )}
 
+      <div className={styles.actionBar}>
+        <h2 className="text-xl font-semibold text-white">{t('lessons:manage')}</h2>
+        <div className="flex gap-2">
+          <button onClick={downloadTemplate} className={styles.btn}>{t('common:downloadTemplate')}</button>
+          <button onClick={exportItems} className={styles.btn}>{t('common:export')}</button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busyImport}
+            className={`${styles.btn} ${styles.btnPrimary}`}
+          >
+            {busyImport ? t('lessons:adding') : t('common:import')}
+          </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          onChange={handleImportFile}
+          className={styles.fileInputHidden}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
+        </div>
+      </div>
+
       {/* Create */}
       <form
         onSubmit={createLesson}
-        className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-neutral-900/60 p-4 rounded-xl border border-neutral-800"
+        className={`${styles.panel} grid grid-cols-1 md:grid-cols-5 gap-3 p-4`}
       >
         <input
           type="text"
-          placeholder="Lesson name"
+          placeholder={t('lessons:name')!}
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white md:col-span-2"
+          className={`${styles.input} md:col-span-2`}
           autoComplete="off"
         />
 
@@ -355,49 +494,48 @@ export default function LessonsAdmin() {
               setForm((f) => ({
                 ...f,
                 isStudentTeacher: e.target.checked,
-                // clear selection when switching modes
-                teacherUserId: e.target.checked ? '' : f.teacherUserId,
-                studentUserId: e.target.checked ? f.studentUserId : '',
+                teacherUsername: e.target.checked ? '' : f.teacherUsername,
+                studentUsername: e.target.checked ? f.studentUsername : '',
               }))
             }
           />
-          Student is the teacher
+          {t('lessons:teacherIsStudent')}
         </label>
 
-        {/* Teacher select (enabled when NOT student-teacher) */}
+        {/* Teacher select (username-based) */}
         <select
           disabled={form.isStudentTeacher}
-          value={form.teacherUserId}
-          onChange={(e) => setForm((f) => ({ ...f, teacherUserId: e.target.value }))}
+          value={form.teacherUsername}
+          onChange={(e) => setForm((f) => ({ ...f, teacherUsername: e.target.value }))}
           className={[
-            'px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white',
+            styles.select,
             form.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
             'md:col-span-1',
           ].join(' ')}
         >
-          <option value="">Select teacher…</option>
-          {teachers.map((t) => (
-            <option key={t.id} value={t.id}>
-              {userLabel(t)}
+          <option value="">{t('lessons:selectTeacher')}</option>
+          {teachers.map((tch) => (
+            <option key={tch.id} value={tch.username || ''}>
+              {labelFromUser(tch)}
             </option>
           ))}
         </select>
 
-        {/* Student select (enabled when student-teacher) */}
+        {/* Student select (username-based) */}
         <select
           disabled={!form.isStudentTeacher}
-          value={form.studentUserId}
-          onChange={(e) => setForm((f) => ({ ...f, studentUserId: e.target.value }))}
+          value={form.studentUsername}
+          onChange={(e) => setForm((f) => ({ ...f, studentUsername: e.target.value }))}
           className={[
-            'px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white',
+            styles.select,
             !form.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
             'md:col-span-1',
           ].join(' ')}
         >
-          <option value="">Select student…</option>
+          <option value="">{t('lessons:selectStudent')}</option>
           {students.map((s) => (
-            <option key={s.id} value={s.id}>
-              {userLabel(s)}
+            <option key={s.id} value={s.username || ''}>
+              {labelFromUser(s)}
             </option>
           ))}
         </select>
@@ -406,58 +544,45 @@ export default function LessonsAdmin() {
           <button
             type="submit"
             disabled={!canCreate || submitting}
-            className={[
-              'px-3 py-2 rounded-xl text-white transition',
-              canCreate && !submitting ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-neutral-700 cursor-not-allowed',
-            ].join(' ')}
+            className={`${styles.btn} ${styles.btnPrimary}`}
           >
-            {submitting ? 'Adding…' : 'Add lesson'}
+            {submitting ? t('lessons:adding') : t('lessons:add')}
           </button>
         </div>
       </form>
 
       {/* List */}
-      <div className="bg-neutral-900/60 rounded-xl border border-neutral-800 overflow-hidden">
-        <table className="w-full text-left text-white">
-          <thead className="bg-neutral-800/80">
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
             <tr>
-              <th className="px-3 py-2 font-medium">Lesson name</th>
-              <th className="px-3 py-2 font-medium">Teacher</th>
-              <th className="px-3 py-2 font-medium w-44">Actions</th>
+              <th>{t('lessons:table.name')}</th>
+              <th>{t('lessons:table.teacher')}</th>
+              <th className="w-44">{t('common:actions')}</th>
             </tr>
           </thead>
           <tbody>
             {lessons.map((l) => {
               const teacherStr = l.isStudentTeacher
-                ? compactName(l.studentFirstName, l.studentLastName, l.studentUsername) + ' (student)'
+                ? `${compactName(l.studentFirstName, l.studentLastName, l.studentUsername)} ${t('lessons:labels.studentSuffix')}`
                 : compactName(l.teacherFirstName, l.teacherLastName, l.teacherUsername);
               return (
-                <tr key={l.id} className="odd:bg-neutral-900 even:bg-neutral-900/40">
-                  <td className="px-3 py-2">{l.name}</td>
-                  <td className="px-3 py-2">
-                    {teacherStr || <span className="text-neutral-400">—</span>}
-                  </td>
-                  <td className="px-3 py-2 space-x-2">
-                    <button
-                      onClick={() => openEdit(l)}
-                      className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => removeLesson(l.id)}
-                      className="px-2 py-1 rounded bg-red-600 hover:bg-red-500"
-                    >
-                      Delete
-                    </button>
+                <tr key={l.id}>
+                  <td>{l.name}</td>
+                  <td>{teacherStr || <span className="text-neutral-400">—</span>}</td>
+                  <td>
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(l)} className={styles.btn}>{t('common:edit')}</button>
+                      <button onClick={() => removeLesson(l.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete')}</button>
+                    </div>
                   </td>
                 </tr>
               );
             })}
             {!lessons.length && (
               <tr>
-                <td className="px-3 py-6 text-neutral-400" colSpan={3}>
-                  No lessons
+                <td colSpan={3} style={{ color: 'var(--sb-muted)', padding: '1rem' }}>
+                  {t('common:noItems')}
                 </td>
               </tr>
             )}
@@ -468,33 +593,27 @@ export default function LessonsAdmin() {
       {/* Edit modal */}
       {edit.open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          className={styles.modalScrim}
           onClick={(e) => {
             if (e.target === e.currentTarget) closeEdit();
           }}
         >
-          <div className="w-full max-w-xl bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
+          <div className={styles.modalCard}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-white">Edit lesson</h3>
-              <button
-                className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
-                onClick={closeEdit}
-                aria-label="Close"
-              >
-                ✕
-              </button>
+              <h3 className="text-lg font-semibold text-white">{t('lessons:editTitle')}</h3>
+              <button className={styles.btn} onClick={closeEdit} aria-label={t('common:close')!}>✕</button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
-                <label className="block text-sm text-neutral-300 mb-1">Lesson name</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('lessons:name')}</label>
                 <input
                   type="text"
                   value={edit.name}
                   onChange={(e) =>
                     setEdit((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
+                  className={styles.input}
                 />
               </div>
 
@@ -508,57 +627,57 @@ export default function LessonsAdmin() {
                         ? {
                             ...prev,
                             isStudentTeacher: e.target.checked,
-                            teacherUserId: e.target.checked ? null : prev.teacherUserId,
-                            studentUserId: e.target.checked ? prev.studentUserId : null,
+                            teacherUsername: e.target.checked ? '' : prev.teacherUsername,
+                            studentUsername: e.target.checked ? prev.studentUsername : '',
                           }
                         : prev
                     )
                   }
                 />
-                Student is the teacher
+                {t('lessons:teacherIsStudent')}
               </label>
 
               {/* Teacher select */}
-              <div className="md:col-span-1">
-                <label className="block text-sm text-neutral-300 mb-1">Teacher</label>
+              <div>
+                <label className="block text-sm text-neutral-300 mb-1">{t('lessons:teacherByUsername')}</label>
                 <select
                   disabled={edit.isStudentTeacher}
-                  value={edit.teacherUserId || ''}
+                  value={edit.teacherUsername}
                   onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, teacherUserId: e.target.value } : prev))
+                    setEdit((prev) => (prev.open ? { ...prev, teacherUsername: e.target.value } : prev))
                   }
                   className={[
-                    'w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white',
+                    styles.select,
                     edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
                   ].join(' ')}
                 >
-                  <option value="">Select teacher…</option>
+                  <option value="">{t('lessons:selectTeacher')}</option>
                   {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {userLabel(t)}
+                    <option key={t.id} value={t.username || ''}>
+                      {labelFromUser(t)}
                     </option>
                   ))}
                 </select>
               </div>
 
               {/* Student select */}
-              <div className="md:col-span-1">
-                <label className="block text-sm text-neutral-300 mb-1">Student</label>
+              <div>
+                <label className="block text-sm text-neutral-300 mb-1">{t('lessons:studentByUsername')}</label>
                 <select
                   disabled={!edit.isStudentTeacher}
-                  value={edit.studentUserId || ''}
+                  value={edit.studentUsername}
                   onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, studentUserId: e.target.value } : prev))
+                    setEdit((prev) => (prev.open ? { ...prev, studentUsername: e.target.value } : prev))
                   }
                   className={[
-                    'w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white',
+                    styles.select,
                     !edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
                   ].join(' ')}
                 >
-                  <option value="">Select student…</option>
+                  <option value="">{t('lessons:selectStudent')}</option>
                   {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {userLabel(s)}
+                    <option key={s.id} value={s.username || ''}>
+                      {labelFromUser(s)}
                     </option>
                   ))}
                 </select>
@@ -566,21 +685,13 @@ export default function LessonsAdmin() {
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={closeEdit}
-                className="px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white"
-              >
-                Cancel
-              </button>
+              <button onClick={closeEdit} className={styles.btn}>{t('common:cancel')}</button>
               <button
                 onClick={saveEdit}
                 disabled={!canSaveEdit || saving}
-                className={[
-                  'px-3 py-2 rounded-xl text-white transition',
-                  !canSaveEdit || saving ? 'bg-neutral-700 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500',
-                ].join(' ')}
+                className={`${styles.btn} ${styles.btnPrimary}`}
               >
-                {saving ? 'Saving…' : 'Save changes'}
+                {saving ? t('common:saving') : t('common:saveChanges')}
               </button>
             </div>
           </div>

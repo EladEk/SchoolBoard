@@ -1,0 +1,168 @@
+{
+  "tabs": {
+    "users": "Users",
+    "classes": "Classes",
+    "lessons": "Lessons",
+    "timetable": "Timetable"
+  },
+  "dashboard": {
+    "title": "Admin Dashboard",
+    "subtitle": "Manage users, classes, lessons, and weekly timetable.",
+    "logout": "Logout",
+    "roleSeparator": " · "
+  },
+
+  "common": {
+    "downloadTemplate": "Download template",
+    "export": "Export (.xlsx)",
+    "import": "Import (.xlsx / .csv)",
+    "cancel": "Cancel",
+    "saveChanges": "Save changes",
+    "edit": "Edit",
+    "delete": "Delete",
+    "actions": "Actions",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "saved": "Saved!",
+    "error": "Error",
+    "noItems": "No items",
+    "regenerate": "Regenerate",
+    "close": "Close",
+    "selectOption": "Select…"
+  },
+
+  "users": {
+    "manage": "Manage Users",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "username": "Username",
+    "password": "Password",
+    "role": "Role",
+    "create": "Create user",
+    "creating": "Creating…",
+    "table": {
+      "username": "Username",
+      "first": "First",
+      "last": "Last",
+      "role": "Role"
+    },
+    "editTitle": "Edit user",
+    "newPasswordOptional": "New password (optional)",
+    "keepCurrentPassword": "Leave blank to keep current",
+    "toasts": {
+      "loadFail": "Failed to load users: {{msg}}",
+      "dupUser": "Username \"{{username}}\" already exists",
+      "created": "User \"{{username}}\" created",
+      "createFail": "Create failed: {{msg}}",
+      "dupOther": "Another user with username \"{{username}}\" already exists",
+      "updated": "User \"{{username}}\" updated",
+      "updateFail": "Update failed: {{msg}}",
+      "deleted": "User deleted",
+      "deleteFail": "Delete failed: {{msg}}",
+      "importing": "Importing…",
+      "importDone": "Import done: {{created}} created, {{updated}} updated, {{skipped}} skipped",
+      "importFail": "Import failed: {{msg}}",
+      "templateDownloaded": "Template downloaded",
+      "exported": "Exported users"
+    }
+  },
+
+  "classes": {
+    "manage": "Manage Classes",
+    "location": "Class Location",
+    "name": "Class Name",
+    "add": "Add class",
+    "adding": "Adding…",
+    "table": {
+      "classId": "ClassID",
+      "location": "Class Location",
+      "name": "Class Name"
+    },
+    "editTitle": "Edit class",
+    "classId": "ClassID",
+    "toasts": {
+      "loadFail": "Failed to load classes: {{msg}}",
+      "created": "Class \"{{classId}}\" created",
+      "createFail": "Create failed: {{msg}}",
+      "allRequired": "All fields are required",
+      "dupOther": "Another class with ClassID \"{{classId}}\" already exists",
+      "updated": "Class \"{{classId}}\" updated",
+      "updateFail": "Update failed: {{msg}}",
+      "deleted": "Class deleted",
+      "deleteFail": "Delete failed: {{msg}}",
+      "importing": "Importing…",
+      "importDone": "Import done: {{created}} created, {{updated}} updated, {{skipped}} skipped",
+      "importFail": "Import failed: {{msg}}",
+      "templateDownloaded": "Template downloaded",
+      "exported": "Exported classes"
+    }
+  },
+
+  "lessons": {
+    "manage": "Manage Lessons",
+    "name": "Lesson name",
+    "teacherIsStudent": "Student is the teacher",
+    "teacherByUsername": "Teacher (by username)",
+    "studentByUsername": "Student (by username)",
+    "selectTeacher": "Select teacher…",
+    "selectStudent": "Select student…",
+    "add": "Add lesson",
+    "adding": "Adding…",
+    "table": {
+      "name": "Lesson name",
+      "teacher": "Teacher"
+    },
+    "editTitle": "Edit lesson",
+    "toasts": {
+      "loadTeachersFail": "Failed to load teachers: {{msg}}",
+      "loadStudentsFail": "Failed to load students: {{msg}}",
+      "loadLessonsFail": "Failed to load lessons: {{msg}}",
+      "selectValidStudent": "Please select a valid student (by username)",
+      "selectValidTeacher": "Please select a valid teacher (by username)",
+      "created": "Lesson \"{{name}}\" created",
+      "createFail": "Create failed: {{msg}}",
+      "updated": "Lesson \"{{name}}\" updated",
+      "updateFail": "Update failed: {{msg}}",
+      "deleted": "Lesson deleted",
+      "deleteFail": "Delete failed: {{msg}}",
+      "importing": "Importing…",
+      "importDone": "Import done: {{created}} created, {{updated}} updated, {{skipped}} skipped",
+      "importFail": "Import failed: {{msg}}",
+      "templateDownloaded": "Template downloaded",
+      "exported": "Exported lessons"
+    },
+    "labels": {
+      "studentSuffix": "(student)"
+    }
+  },
+
+  "timetable": {
+    "title": "Lessons Scheduler",
+    "legend": {
+      "selectedExisting": "Selected lesson (existing)",
+      "taken": "Class taken by other lesson",
+      "pending": "Pending change"
+    },
+    "emptyPrompt": "Pick a class to start scheduling.",
+    "headers": {
+      "timeDay": "Time \\ Day"
+    },
+    "labels": {
+      "class": "Class",
+      "lesson": "Lesson",
+      "placed": "Placed <b>{{count}}</b>",
+      "save": "Save",
+      "cancel": "Cancel",
+      "loadedEntries": "Loaded entries: {{count}}"
+    },
+    "toasts": {
+      "loadFailed": "Failed to load timetable: {{msg}}",
+      "prepareFailed": "Failed to prepare timetable: {{msg}}",
+      "saving": "Saving…",
+      "saved": "Saved!",
+      "saveFailed": "Save failed",
+      "selectLessonFirst": "Select a lesson first to add."
+    },
+    "days": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  }
+}

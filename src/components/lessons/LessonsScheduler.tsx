@@ -4,6 +4,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
 import { getAuth } from 'firebase/auth';
+import './LessonsScheduler.css';
+import { useTranslation } from 'react-i18next';
 
 type SchoolClass = { id: string; name: string; location?: string; classId?: string };
 type Lesson = {
@@ -17,10 +19,6 @@ type Entry = {
   day: number; startMinutes: number; endMinutes: number;
 };
 
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-// MUST include the final boundary so the last row (e.g. 13:15→14:00) exists.
-const TIME_POINTS = ['08:00','08:45','09:30','10:15','11:00','11:45','12:30','13:15','14:00'];
-
 function toMinutes(hm: string){ const [h,m]=hm.split(':').map(Number); return h*60+m; }
 function labelForLesson(l?: Lesson | null){
   if(!l) return '';
@@ -32,6 +30,7 @@ function labelForLesson(l?: Lesson | null){
 function cellKey(day:number, sm:number, em:number){ return `${day}:${sm}-${em}`; }
 
 export default function LessonsScheduler(){
+  const { t, i18n } = useTranslation();
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -59,7 +58,7 @@ export default function LessonsScheduler(){
     return { id, classId: String(raw.classId ?? ''), lessonId: String(raw.lessonId ?? ''), day, startMinutes, endMinutes };
   }
 
-  // Load timetable entries for selected class (supports doc id AND business ClassID) — no orderBy, sort client-side
+  // Load timetable entries for selected class
   useEffect(()=>{
     clearStaged();
     setEntries([]);
@@ -70,35 +69,34 @@ export default function LessonsScheduler(){
       try{
         const classSnap = await getDoc(doc(db,'classes',selectedClass));
         const bizId = classSnap.exists() ? (classSnap.data() as any)?.classId : undefined;
-
         const classIds = bizId ? [selectedClass, String(bizId)] : [selectedClass];
-
-        // Use 'in' filter to get both in one listener (max 10 values)
         const qy = query(collection(db,'timetableEntries'), where('classId','in', classIds));
         unsub = onSnapshot(qy, s=>{
           const arr = s.docs.map(d=>normalizeEntry(d.id, d.data()));
-          // keep only rows with a valid day + minutes
           const clean = arr.filter(e => Number.isFinite(e.day) && Number.isFinite(e.startMinutes) && Number.isFinite(e.endMinutes));
-          // sort client-side by day then startMinutes
           clean.sort((a,b)=> a.day-b.day || a.startMinutes-b.startMinutes);
           setEntries(clean);
         }, err=>{
           console.error('[timetableEntries] snapshot error:', err);
-          setStatus({kind:'error', message: 'Failed to load timetable: '+ (err?.message||'unknown')});
+          setStatus({kind:'error', message: t('timetable:toasts.loadFailed', { msg: err?.message || 'unknown' })});
         });
       }catch(e:any){
         console.error('Failed to prepare timetable query:', e);
-        setStatus({kind:'error', message: 'Failed to prepare timetable: '+ (e?.message||'unknown')});
+        setStatus({kind:'error', message: t('timetable:toasts.prepareFailed', { msg: e?.message || 'unknown' })});
       }
     })();
 
     return ()=>{ if(unsub) unsub(); };
-  },[selectedClass]);
+  },[selectedClass, t]);
 
+  // Time grid
+  const TIME_POINTS = useMemo(() => ['08:00','08:45','09:30','10:15','11:00','11:45','12:30','13:15','14:00'], []);
   const slots = useMemo(()=> TIME_POINTS.slice(0,-1).map((start,i)=>{
     const end = TIME_POINTS[i+1]!;
-    return {start,end, sm:toMinutes(start), em:toMinutes(end)};
+    const toMin=(hm:string)=>{const [h,m]=hm.split(':').map(Number);return h*60+m;};
+    return {start,end, sm:toMin(start), em:toMin(end)};
   }),[]);
+  const DAYS = useMemo(() => t('timetable:days', { returnObjects: true }) as string[], [t, i18n.language]);
 
   function clearStaged(){
     setPendingAdds(new Map()); setPendingDeletes(new Map()); setPendingReplaces(new Map());
@@ -131,7 +129,7 @@ export default function LessonsScheduler(){
       return;
     }
 
-    if(!selectedLesson){ alert('Select a lesson first to add.'); return; }
+    if(!selectedLesson){ alert(t('timetable:toasts.selectLessonFirst')); return; }
     const m=new Map(pendingAdds);
     m.set(key,{day:dayIdx, sm, em, lessonId:selectedLesson});
     setPendingAdds(m);
@@ -141,7 +139,7 @@ export default function LessonsScheduler(){
 
   async function saveChanges(){
     if(!selectedClass || !hasPending) return;
-    setStatus({kind:'saving', message:'Saving…'});
+    setStatus({kind:'saving', message: t('timetable:toasts.saving')});
     try{
       const uid = getAuth().currentUser?.uid ?? 'EDITOR';
 
@@ -159,11 +157,11 @@ export default function LessonsScheduler(){
       );
 
       await Promise.all([...adds, ...dels, ...reps]);
-      setStatus({kind:'success', message:'Saved!'});
+      setStatus({kind:'success', message:t('timetable:toasts.saved')});
       clearStaged();
     }catch(err:any){
       console.error(err);
-      setStatus({kind:'error', message: err?.message || 'Save failed'});
+      setStatus({kind:'error', message: t('timetable:toasts.saveFailed')});
     }
   }
 
@@ -195,83 +193,83 @@ export default function LessonsScheduler(){
   );
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Lessons Scheduler</h2>
+    <div className="ls-wrap">
+      <div className="ls-header">
+        <div className="ls-title">
+          <span className="ls-title-dot" />
+          {t('timetable:title')}
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm text-neutral-400">Class:</label>
-        <select
-          value={selectedClass}
-          onChange={e=>{ setSelectedClass(e.target.value); clearStaged(); setSelectedLesson(''); }}
-          className="px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-700 min-w-[240px]"
-        >
-          <option value="">— Select class —</option>
-          {classes.map(c=>(
-            <option key={c.id} value={c.id}>
-              {c.name} {c.location?`· ${c.location}`:''} {c.classId?`· ${c.classId}`:''}
-            </option>
-          ))}
-        </select>
+        <div className="ls-toolbar">
+          <label className="ls-label">{t('timetable:labels.class')}</label>
+          <select
+            value={selectedClass}
+            onChange={e=>{ setSelectedClass(e.target.value); clearStaged(); setSelectedLesson(''); }}
+            className="ls-select"
+          >
+            <option value="">{t('common:selectOption')}</option>
+            {classes.map(c=>(
+              <option key={c.id} value={c.id}>
+                {c.name} {c.location?`· ${c.location}`:''} {c.classId?`· ${c.classId}`:''}
+              </option>
+            ))}
+          </select>
 
-        <label className="text-sm text-neutral-400">Lesson:</label>
-        <select
-          value={selectedLesson}
-          onChange={e=>{ setSelectedLesson(e.target.value); clearStaged(); }}
-          disabled={!selectedClass}
-          className="px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-700 min-w-[320px] disabled:opacity-50"
-        >
-          <option value="">— Select lesson —</option>
-          {lessons.map(l=>(
-            <option key={l.id} value={l.id}>{labelForLesson(l)}</option>
-          ))}
-        </select>
+          <label className="ls-label">{t('timetable:labels.lesson')}</label>
+          <select
+            value={selectedLesson}
+            onChange={e=>{ setSelectedLesson(e.target.value); clearStaged(); }}
+            disabled={!selectedClass}
+            className="ls-select"
+          >
+            <option value="">{t('common:selectOption')}</option>
+            {lessons.map(l=>(
+              <option key={l.id} value={l.id}>{labelForLesson(l)}</option>
+            ))}
+          </select>
 
-        {selectedLesson && (
-          <div className="text-xs text-neutral-400">
-            Placed: <span className="text-neutral-200">{placedCount}</span> cell{placedCount===1?'':'s'}
+          {selectedLesson && (
+            <div className="ls-placed" dangerouslySetInnerHTML={{__html: t('timetable:labels.placed', { count: placedCount })}} />
+          )}
+
+          <div className="ls-actions">
+            <button
+              onClick={saveChanges}
+              disabled={!hasPending || !selectedClass}
+              className={`ls-btn ${hasPending ? 'ls-btn-primary' : 'ls-btn-disabled'}`}
+            >{t('timetable:labels.save')}</button>
+            <button
+              onClick={clearStaged}
+              disabled={!hasPending}
+              className={`ls-btn ${hasPending ? 'ls-btn-neutral' : 'ls-btn-disabled'}`}
+            >{t('timetable:labels.cancel')}</button>
           </div>
-        )}
+        </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={saveChanges}
-            disabled={!hasPending || !selectedClass}
-            className={['px-3 py-2 rounded-xl text-white transition',
-              hasPending ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-neutral-700 cursor-not-allowed'].join(' ')}
-          >Save</button>
-          <button
-            onClick={clearStaged}
-            disabled={!hasPending}
-            className={['px-3 py-2 rounded-xl text-white transition',
-              hasPending ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-neutral-800 cursor-not-allowed'].join(' ')}
-          >Cancel</button>
-      </div>
-      </div>
-
-      {/* Legend */}
-      <div className="text-xs text-neutral-500 flex flex-wrap gap-4">
-        <span><span style={{display:'inline-block',width:12,height:12,background:'#0c4a6e',marginRight:6}}/>Selected lesson (existing)</span>
-        <span><span style={{display:'inline-block',width:12,height:12,background:'#7f1d1d',marginRight:6}}/>Class taken by other lesson</span>
-        <span><span style={{display:'inline-block',width:12,height:12,background:'#7f1d1d',border:'2px dashed #fff',boxSizing:'border-box',marginRight:6}}/>Pending change</span>
+        <div className="ls-legend">
+          <span className="ls-badge ls-badge-selected">{t('timetable:legend.selectedExisting')}</span>
+          <span className="ls-badge ls-badge-taken">{t('timetable:legend.taken')}</span>
+          <span className="ls-badge ls-badge-pending">{t('timetable:legend.pending')}</span>
+        </div>
       </div>
 
       {!selectedClass ? (
-        <div className="text-neutral-500 text-sm">Pick a class to start scheduling.</div>
+        <div className="ls-empty">{t('timetable:emptyPrompt')}</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="border-collapse min-w-[900px]">
+        <div className="ls-table-scroller">
+          <table className="ls-table">
             <thead>
               <tr>
-                <th className="border-b border-neutral-700 p-2 text-left text-neutral-400">Time \ Day</th>
-                {DAYS.map(d=>(
-                  <th key={d} className="border-b border-neutral-700 p-2 text-left text-neutral-400">{d}</th>
+                <th className="ls-th ls-th-time">{t('timetable:headers.timeDay')}</th>
+                {DAYS.map((d, idx)=>(
+                  <th key={idx} className="ls-th">{d}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {slots.map(({start,end,sm,em})=>(
                 <tr key={start}>
-                  <td className="border-r border-neutral-700 p-2 font-semibold whitespace-nowrap">{start}–{end}</td>
+                  <td className="ls-td-time">{start}–{end}</td>
                   {DAYS.map((_,dayIdx)=>{
                     const viz = getCellVisual(dayIdx, sm, em);
 
@@ -293,14 +291,12 @@ export default function LessonsScheduler(){
                       <td
                         key={`${dayIdx}-${sm}`}
                         onClick={()=>handleCellClick(dayIdx, sm, em)}
-                        className="border border-neutral-700 p-0 cursor-pointer select-none"
-                        style={{ backgroundColor:bg, outline:isPending?'2px dashed #ffffff':'none', outlineOffset:'-2px' }}
+                        className={`ls-td ${isPending ? 'ls-td-pending' : ''}`}
+                        style={{ backgroundColor:bg, color:fg, textDecoration: strike ? 'line-through' : 'none' }}
                         title={text}
                       >
-                        <div className="h-12 flex items-center justify-center px-2" style={{ color:fg }}>
-                          <span className="truncate" style={{ textDecoration: strike ? 'line-through' : 'none' }}>
-                            {text}
-                          </span>
+                        <div className="ls-cell">
+                          <span className="ls-cell-text">{text}</span>
                         </div>
                       </td>
                     );
@@ -312,27 +308,14 @@ export default function LessonsScheduler(){
         </div>
       )}
 
-      {/* inline status */}
       {status.kind!=='idle' && (
-        <div
-          className="text-sm rounded-lg px-3 py-2 border inline-block"
-          style={
-            status.kind==='saving'
-              ? { color:'#fcd34d', background:'#78350f33', borderColor:'#b45309' }
-              : status.kind==='success'
-              ? { color:'#6ee7b7', background:'#064e3b33', borderColor:'#10b981' }
-              : { color:'#fca5a5', background:'#7f1d1d33', borderColor:'#ef4444' }
-          }
-        >
+        <div className={`ls-status ls-status-${status.kind}`}>
           {status.message}
         </div>
       )}
 
-      {/* tiny debug */}
       {selectedClass && (
-        <div className="text-xs text-neutral-500">
-          Loaded entries: {entries.length}
-        </div>
+        <div className="ls-footnote">{t('timetable:labels.loadedEntries', { count: entries.length })}</div>
       )}
     </div>
   );

@@ -1,0 +1,14 @@
+{
+  "logout": "Logout",
+  "actions": "Actions",
+  "edit": "Edit",
+  "delete": "Delete",
+  "cancel": "Cancel",
+  "saving": "Saving…",
+  "saveChanges": "Save changes",
+  "remove": "Remove",
+  "add": "Add",
+  "noItems": "No items",
+  "selectOption": "Select…",
+  "close": "Close"
+}

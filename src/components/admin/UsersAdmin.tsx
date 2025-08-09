@@ -1,19 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
+  addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query,
+  serverTimestamp, updateDoc, where
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
 import * as bcrypt from 'bcryptjs';
+import * as XLSX from 'xlsx';
+import styles from './UsersAdmin.module.css';
+import { useTranslation } from 'react-i18next';
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
 type AppUser = {
@@ -28,11 +22,9 @@ type AppUser = {
   createdAt?: any;
 };
 
-const ROLES: Role[] = ['admin', 'teacher', 'student', 'kiosk'];
-
 type ToastState =
   | { show: false }
-  | { show: true; kind: 'success' | 'error'; message: string };
+  | { show: true; kind: 'success' | 'error' | 'info'; message: string };
 
 type EditState =
   | { open: false }
@@ -43,52 +35,42 @@ type EditState =
       lastName: string;
       username: string;
       role: Role;
-      newPassword: string; // optional
+      newPassword: string;
     };
 
 export default function UsersAdmin() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [toast, setToast] = useState<ToastState>({ show: false });
 
-  // Create form
   const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    username: '',
-    password: '',
-    role: 'teacher' as Role,
+    firstName: '', lastName: '', username: '', password: '', role: 'teacher' as Role,
   });
   const [submitting, setSubmitting] = useState(false);
 
-  // Edit modal state
   const [edit, setEdit] = useState<EditState>({ open: false });
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // live users list
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [busyImport, setBusyImport] = useState(false);
+
   useEffect(() => {
     const unsub = onSnapshot(
       query(collection(db, 'appUsers'), orderBy('username')),
-      (snap) => {
-        setUsers(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      },
-      (err) => {
-        showToast('error', `Failed to load users: ${err.message}`);
-      },
+      (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))),
+      (err) => showToast('error', t('users:toasts.loadFail', { msg: err.message })),
     );
     return () => unsub();
-  }, []);
+  }, [t]);
 
-  const canCreate = useMemo(() => {
-    return (
-      form.username.trim().length > 0 &&
-      form.password.trim().length > 0 &&
-      form.firstName.trim().length + form.lastName.trim().length > 0
-    );
-  }, [form.username, form.password, form.firstName, form.lastName]);
+  const canCreate = useMemo(() =>
+    form.username.trim() && form.password.trim() && (form.firstName.trim() || form.lastName.trim())
+      ? true : false
+  , [form]);
 
-  function showToast(kind: 'success' | 'error', message: string) {
+  function showToast(kind: 'success' | 'error' | 'info', message: string) {
     setToast({ show: true, kind, message });
-    setTimeout(() => setToast({ show: false }), 2500);
+    setTimeout(() => setToast({ show: false }), 2600);
   }
 
   async function createUser(e: React.FormEvent) {
@@ -102,13 +84,11 @@ export default function UsersAdmin() {
 
     try {
       setSubmitting(true);
-
-      // prevent duplicates on usernameLower
       const dupSnap = await getDocs(
         query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
       );
       if (!dupSnap.empty) {
-        showToast('error', `Username "${username}" already exists`);
+        showToast('error', t('users:toasts.dupUser', { username }));
         return;
       }
 
@@ -116,20 +96,14 @@ export default function UsersAdmin() {
       const passwordHash = bcrypt.hashSync(form.password, salt);
 
       await addDoc(collection(db, 'appUsers'), {
-        firstName,
-        lastName,
-        username,
-        usernameLower,
-        role: form.role,
-        salt,
-        passwordHash,
-        createdAt: serverTimestamp(),
+        firstName, lastName, username, usernameLower, role: form.role,
+        salt, passwordHash, createdAt: serverTimestamp(),
       });
 
       setForm({ firstName: '', lastName: '', username: '', password: '', role: 'teacher' });
-      showToast('success', `User "${username}" created`);
+      showToast('success', t('users:toasts.created', { username }));
     } catch (err: any) {
-      showToast('error', `Create failed: ${err?.message || 'unknown error'}`);
+      showToast('error', t('users:toasts.createFail', { msg: err?.message || 'unknown' }));
     } finally {
       setSubmitting(false);
     }
@@ -137,22 +111,15 @@ export default function UsersAdmin() {
 
   function openEdit(u: AppUser) {
     setEdit({
-      open: true,
-      id: u.id,
-      firstName: u.firstName || '',
-      lastName: u.lastName || '',
-      username: u.username || '',
-      role: u.role,
-      newPassword: '',
+      open: true, id: u.id,
+      firstName: u.firstName || '', lastName: u.lastName || '',
+      username: u.username || '', role: u.role, newPassword: '',
     });
   }
-
-  function closeEdit() {
-    setEdit({ open: false });
-  }
+  function closeEdit() { setEdit({ open: false }); }
 
   async function saveEdit() {
-    if (!('open' in edit) || !edit.open) return;
+    if (!edit.open) return;
 
     const id = edit.id;
     const firstName = edit.firstName.trim();
@@ -160,182 +127,197 @@ export default function UsersAdmin() {
     const username = edit.username.trim();
     const usernameLower = username.toLowerCase();
 
-    if (!username) {
-      showToast('error', 'Username is required');
-      return;
-    }
-    if ((firstName + lastName).length === 0) {
-      showToast('error', 'First/Last name cannot both be empty');
-      return;
-    }
+    if (!username) return showToast('error', t('users:toasts.createFail', { msg: t('users:username') }));
+    if (!firstName && !lastName) return showToast('error', t('users:toasts.createFail', { msg: t('users:firstName') + '/' + t('users:lastName') }));
 
     try {
       setSavingEdit(true);
-
-      // Duplicate username check excluding current id
       const dup = await getDocs(
         query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
       );
       const dupExists = dup.docs.some((d) => d.id !== id);
       if (dupExists) {
-        showToast('error', `Another user with username "${username}" already exists`);
+        showToast('error', t('users:toasts.dupOther', { username }));
         return;
       }
 
-      const updatePayload: any = {
-        firstName,
-        lastName,
-        username,
-        usernameLower,
-        role: edit.role,
+      const payload: any = {
+        firstName, lastName, username, usernameLower, role: edit.role,
       };
-
-      if (edit.newPassword && edit.newPassword.trim().length > 0) {
+      if (edit.newPassword?.trim()) {
         const salt = bcrypt.genSaltSync(10);
         const passwordHash = bcrypt.hashSync(edit.newPassword.trim(), salt);
-        updatePayload.salt = salt;
-        updatePayload.passwordHash = passwordHash;
+        payload.salt = salt;
+        payload.passwordHash = passwordHash;
       }
-
-      await updateDoc(doc(db, 'appUsers', id), updatePayload);
-      showToast('success', `User "${username}" updated`);
+      await updateDoc(doc(db, 'appUsers', id), payload);
+      showToast('success', t('users:toasts.updated', { username }));
       closeEdit();
     } catch (err: any) {
-      showToast('error', `Update failed: ${err?.message || 'unknown error'}`);
+      showToast('error', t('users:toasts.updateFail', { msg: err?.message || 'unknown' }));
     } finally {
       setSavingEdit(false);
     }
   }
 
   async function removeUser(id: string) {
+    try { await deleteDoc(doc(db, 'appUsers', id)); showToast('success', t('users:toasts.deleted')); }
+    catch (err: any) { showToast('error', t('users:toasts.deleteFail', { msg: err?.message || 'unknown' })); }
+  }
+
+  function downloadTemplate() {
+    const rows = [
+      { username: 'teacher.alex', firstName: 'Alex', lastName: 'Levi', role: 'teacher', password: 'Secret123' },
+      { username: 'student.neta', firstName: 'Neta', lastName: 'Cohen', role: 'student', password: 'Temp4567' },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: ['username','firstName','lastName','role','password'] });
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'UsersTemplate');
+    XLSX.writeFile(wb, 'users-template.xlsx'); showToast('info', t('users:toasts.templateDownloaded'));
+  }
+  function exportUsers() {
+    const rows = users.map(u => ({
+      username: u.username || '', firstName: u.firstName || '', lastName: u.lastName || '', role: u.role || 'student', password: ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows, { header: ['username','firstName','lastName','role','password'] });
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Users');
+    XLSX.writeFile(wb, 'users-export.xlsx'); showToast('success', t('users:toasts.exported'));
+  }
+  function openFilePicker() { fileInputRef.current?.click(); }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value=''; if (!file) return;
     try {
-      await deleteDoc(doc(db, 'appUsers', id));
-      showToast('success', 'User deleted');
-    } catch (err: any) {
-      showToast('error', `Delete failed: ${err?.message || 'unknown error'}`);
-    }
+      setBusyImport(true); showToast('info', t('users:toasts.importing'));
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rowsRaw: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      const existingMap = new Map<string, AppUser>();
+      for (const u of users) {
+        const key = (u.usernameLower || u.username?.toLowerCase()) as string;
+        if (key) existingMap.set(key, u);
+      }
+
+      let created = 0, updated = 0, skipped = 0;
+      const reasons: string[] = [];
+
+      for (let i=0;i<rowsRaw.length;i++){
+        const r = rowsRaw[i];
+        const username = String(r['username'] ?? r['Username'] ?? '').trim();
+        const firstName = String(r['firstName'] ?? r['FirstName'] ?? '').trim();
+        const lastName = String(r['lastName'] ?? r['LastName'] ?? '').trim();
+        const role = String(r['role'] ?? r['Role'] ?? 'student').trim() as Role;
+        const password = String(r['password'] ?? r['Password'] ?? '').trim();
+
+        if (!username){ skipped++; reasons.push(`Row ${i+2}: missing username`); continue; }
+        const key = username.toLowerCase();
+        const existing = existingMap.get(key);
+
+        if (existing){
+          const payload: any = { firstName, lastName, username, usernameLower:key, role };
+          if (password){
+            const salt = bcrypt.genSaltSync(10);
+            const passwordHash = bcrypt.hashSync(password, salt);
+            payload.salt = salt; payload.passwordHash = passwordHash;
+          }
+          await updateDoc(doc(db, 'appUsers', existing.id), payload);
+          updated++;
+        } else {
+          if (!password){ skipped++; reasons.push(`Row ${i+2}: new user "${username}" missing password`); continue; }
+          const salt = bcrypt.genSaltSync(10);
+          const passwordHash = bcrypt.hashSync(password, salt);
+          await addDoc(collection(db, 'appUsers'), {
+            firstName, lastName, username, usernameLower:key, role, salt, passwordHash, createdAt: serverTimestamp(),
+          });
+          created++;
+        }
+      }
+      showToast('success', t('users:toasts.importDone', { created, updated, skipped }));
+      if (reasons.length) console.warn('Import skipped reasons:', reasons.join('\n'));
+    } catch (err:any) {
+      console.error(err); showToast('error', t('users:toasts.importFail', { msg: err?.message || 'unknown' }));
+    } finally { setBusyImport(false); }
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div className={styles.wrapper}>
       {/* Toast */}
       {toast.show && (
-        <div
-          className={[
-            'fixed z-50 left-1/2 -translate-x-1/2 top-6 px-4 py-2 rounded-xl shadow-lg',
-            toast.kind === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white',
-          ].join(' ')}
-          role="status"
-          aria-live="polite"
-        >
+        <div className={[
+          styles.toast,
+          toast.kind==='success'?styles.toastSuccess: toast.kind==='info'?styles.toastInfo:styles.toastError
+        ].join(' ')} role="status" aria-live="polite">
           {toast.message}
         </div>
       )}
 
-      <h2 className="text-xl font-semibold text-white">Manage Users</h2>
+      <div className={styles.actionBar}>
+        <h2 className="text-xl font-semibold text-white">{t('users:manage')}</h2>
+        <div className="flex gap-2">
+          <button onClick={downloadTemplate} className={`${styles.btn}`}>{t('common:downloadTemplate')}</button>
+          <button onClick={exportUsers} className={`${styles.btn}`}>{t('common:export')}</button>
+          <button onClick={openFilePicker} disabled={busyImport}
+            className={`${styles.btn} ${styles.btnPrimary}`} >
+            {busyImport ? t('users:creating') : t('common:import')}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleImportFile}
+            className={styles.fileInputHidden}
+          />
+        </div>
+      </div>
 
       {/* Create User */}
-      <form
-        onSubmit={createUser}
-        className="grid grid-cols-1 md:grid-cols-6 gap-3 bg-neutral-900/60 p-4 rounded-xl border border-neutral-800"
-      >
-        <input
-          type="text"
-          value={form.firstName}
-          onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-          placeholder="First name"
-          className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-          autoComplete="off"
-        />
-        <input
-          type="text"
-          value={form.lastName}
-          onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-          placeholder="Last name"
-          className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-          autoComplete="off"
-        />
-        <input
-          type="text"
-          value={form.username}
-          onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-          placeholder="Username"
-          className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-          autoComplete="username"
-        />
-        <input
-          type="password"
-          value={form.password}
-          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          placeholder="Password"
-          className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-          autoComplete="new-password"
-        />
-        <select
-          value={form.role}
-          onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
-          className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-        >
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
+      <form onSubmit={createUser} className={`${styles.panel} grid grid-cols-1 md:grid-cols-6 gap-3 p-4`}>
+        <input className={styles.input} placeholder={t('users:firstName')!}
+          value={form.firstName} onChange={(e)=>setForm(f=>({...f,firstName:e.target.value}))}/>
+        <input className={styles.input} placeholder={t('users:lastName')!}
+          value={form.lastName} onChange={(e)=>setForm(f=>({...f,lastName:e.target.value}))}/>
+        <input className={styles.input} placeholder={t('users:username')!} autoComplete="username"
+          value={form.username} onChange={(e)=>setForm(f=>({...f,username:e.target.value}))}/>
+        <input className={styles.input} type="password" placeholder={t('users:password')!} autoComplete="new-password"
+          value={form.password} onChange={(e)=>setForm(f=>({...f,password:e.target.value}))}/>
+        <select className={styles.select} value={form.role}
+          onChange={(e)=>setForm(f=>({...f,role:e.target.value as Role}))}>
+          {['admin','teacher','student','kiosk'].map(r=><option key={r} value={r}>{r}</option>)}
         </select>
-
-        <button
-          type="submit"
-          disabled={!canCreate || submitting}
-          className={[
-            'px-3 py-2 rounded-xl text-white transition',
-            canCreate && !submitting ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-neutral-700 cursor-not-allowed',
-          ].join(' ')}
-        >
-          {submitting ? 'Creating…' : 'Create user'}
-        </button>
+        <button type="submit" disabled={!canCreate||submitting}
+          className={`${styles.btn} ${styles.btnPrimary}`}>{submitting?t('users:creating'):t('users:create')}</button>
       </form>
 
-      {/* Users table */}
-      <div className="bg-neutral-900/60 rounded-xl border border-neutral-800 overflow-hidden">
-        <table className="w-full text-left text-white">
-          <thead className="bg-neutral-800/80">
+      {/* Table */}
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
             <tr>
-              <th className="px-3 py-2 font-medium">Username</th>
-              <th className="px-3 py-2 font-medium">First</th>
-              <th className="px-3 py-2 font-medium">Last</th>
-              <th className="px-3 py-2 font-medium">Role</th>
-              <th className="px-3 py-2 font-medium w-48">Actions</th>
+              <th>{t('users:table.username')}</th>
+              <th>{t('users:table.first')}</th>
+              <th>{t('users:table.last')}</th>
+              <th>{t('users:table.role')}</th>
+              <th className="w-48">{t('common:actions')}</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="odd:bg-neutral-900 even:bg-neutral-900/40">
-                <td className="px-3 py-2">{u.username}</td>
-                <td className="px-3 py-2">{u.firstName || ''}</td>
-                <td className="px-3 py-2">{u.lastName || ''}</td>
-                <td className="px-3 py-2">{u.role}</td>
-                <td className="px-3 py-2 space-x-2">
-                  <button
-                    onClick={() => openEdit(u)}
-                    className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => removeUser(u.id)}
-                    className="px-2 py-1 rounded bg-red-600 hover:bg-red-500"
-                  >
-                    Delete
-                  </button>
+            {users.map(u=>(
+              <tr key={u.id}>
+                <td>{u.username}</td>
+                <td>{u.firstName||''}</td>
+                <td>{u.lastName||''}</td>
+                <td>{u.role}</td>
+                <td>
+                  <div className="flex gap-2">
+                    <button onClick={()=>openEdit(u)} className={styles.btn}>{t('common:edit')}</button>
+                    <button onClick={()=>removeUser(u.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete')}</button>
+                  </div>
                 </td>
               </tr>
             ))}
             {!users.length && (
-              <tr>
-                <td className="px-3 py-6 text-neutral-400" colSpan={5}>
-                  No users
-                </td>
-              </tr>
+              <tr><td colSpan={5} style={{color:'var(--sb-muted)', padding:'1rem'}}>{t('common:noItems')}</td></tr>
             )}
           </tbody>
         </table>
@@ -343,105 +325,48 @@ export default function UsersAdmin() {
 
       {/* Edit Modal */}
       {edit.open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeEdit();
-          }}
-        >
-          <div className="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
+        <div className={styles.modalScrim} onClick={(e)=>{ if(e.target===e.currentTarget) closeEdit(); }}>
+          <div className={styles.modalCard}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-white">Edit user</h3>
-              <button
-                className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
-                onClick={closeEdit}
-                aria-label="Close"
-              >
-                ✕
-              </button>
+              <h3 className="text-lg font-semibold text-white">{t('users:editTitle')}</h3>
+              <button className={styles.btn} onClick={closeEdit} aria-label={t('common:close')!}>✕</button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">First name</label>
-                <input
-                  type="text"
-                  value={edit.firstName}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, firstName: e.target.value } : prev))
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-                />
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:firstName')}</label>
+                <input className={styles.input} value={edit.firstName}
+                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,firstName:e.target.value}:prev)} />
               </div>
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">Last name</label>
-                <input
-                  type="text"
-                  value={edit.lastName}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, lastName: e.target.value } : prev))
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-                />
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:lastName')}</label>
+                <input className={styles.input} value={edit.lastName}
+                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,lastName:e.target.value}:prev)} />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm text-neutral-300 mb-1">Username</label>
-                <input
-                  type="text"
-                  value={edit.username}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, username: e.target.value } : prev))
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-                />
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:username')}</label>
+                <input className={styles.input} value={edit.username}
+                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,username:e.target.value}:prev)} />
               </div>
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">Role</label>
-                <select
-                  value={edit.role}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, role: e.target.value as Role } : prev))
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-                >
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:role')}</label>
+                <select className={styles.select} value={edit.role}
+                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,role:e.target.value as Role}:prev)}>
+                  {['admin','teacher','student','kiosk'].map(r=><option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">New password (optional)</label>
-                <input
-                  type="password"
-                  value={edit.newPassword}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, newPassword: e.target.value } : prev))
-                  }
-                  placeholder="Leave blank to keep current"
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-                />
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:newPasswordOptional')}</label>
+                <input className={styles.input} type="password" placeholder={t('users:keepCurrentPassword')!}
+                  value={(edit as any).newPassword}
+                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,newPassword:e.target.value}:prev)} />
               </div>
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={closeEdit}
-                className="px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveEdit}
-                disabled={savingEdit}
-                className={[
-                  'px-3 py-2 rounded-xl text-white transition',
-                  savingEdit ? 'bg-neutral-700' : 'bg-emerald-600 hover:bg-emerald-500',
-                ].join(' ')}
-              >
-                {savingEdit ? 'Saving…' : 'Save changes'}
-              </button>
+              <button onClick={closeEdit} className={styles.btn}>{t('common:cancel')}</button>
+              <button onClick={saveEdit} disabled={savingEdit}
+                className={`${styles.btn} ${styles.btnPrimary}`}>{savingEdit?t('common:saving'):t('common:saveChanges')}</button>
             </div>
           </div>
         </div>

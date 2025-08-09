@@ -1,0 +1,30 @@
+{
+  "manage": "Manage Classes",
+  "location": "Class Location",
+  "name": "Class Name",
+  "add": "Add class",
+  "adding": "Adding…",
+  "table": {
+    "classId": "ClassID",
+    "location": "Class Location",
+    "name": "Class Name"
+  },
+  "editTitle": "Edit class",
+  "classId": "ClassID",
+  "toasts": {
+    "loadFail": "Failed to load classes: {{msg}}",
+    "created": "Class \"{{classId}}\" created",
+    "createFail": "Create failed: {{msg}}",
+    "allRequired": "All fields are required",
+    "dupOther": "Another class with ClassID \"{{classId}}\" already exists",
+    "updated": "Class \"{{classId}}\" updated",
+    "updateFail": "Update failed: {{msg}}",
+    "deleted": "Class deleted",
+    "deleteFail": "Delete failed: {{msg}}",
+    "importing": "Importing…",
+    "importDone": "Import done: {{created}} created, {{updated}} updated, {{skipped}} skipped",
+    "importFail": "Import failed: {{msg}}",
+    "templateDownloaded": "Template downloaded",
+    "exported": "Exported classes"
+  }
+}

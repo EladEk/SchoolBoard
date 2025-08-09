@@ -1,0 +1,35 @@
+{
+  "manage": "Manage Users",
+  "firstName": "First name",
+  "lastName": "Last name",
+  "username": "Username",
+  "password": "Password",
+  "role": "Role",
+  "create": "Create user",
+  "creating": "Creating…",
+  "table": {
+    "username": "Username",
+    "first": "First",
+    "last": "Last",
+    "role": "Role"
+  },
+  "editTitle": "Edit user",
+  "newPasswordOptional": "New password (optional)",
+  "keepCurrentPassword": "Leave blank to keep current",
+  "toasts": {
+    "loadFail": "Failed to load users: {{msg}}",
+    "dupUser": "Username \"{{username}}\" already exists",
+    "created": "User \"{{username}}\" created",
+    "createFail": "Create failed: {{msg}}",
+    "dupOther": "Another user with username \"{{username}}\" already exists",
+    "updated": "User \"{{username}}\" updated",
+    "updateFail": "Update failed: {{msg}}",
+    "deleted": "User deleted",
+    "deleteFail": "Delete failed: {{msg}}",
+    "importing": "Importing…",
+    "importDone": "Import done: {{created}} created, {{updated}} updated, {{skipped}} skipped",
+    "importFail": "Import failed: {{msg}}",
+    "templateDownloaded": "Template downloaded",
+    "exported": "Exported users"
+  }
+}

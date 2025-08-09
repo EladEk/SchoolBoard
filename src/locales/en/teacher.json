@@ -1,0 +1,22 @@
+{
+  "dashboardTitle": "Teacher Dashboard",
+  "myLessons": "My Lessons",
+  "subtitle": "Create lessons you teach, edit names, and manage each lesson's roster.",
+  "creating": "Creating…",
+  "create": "Create Lesson",
+  "empty": "No lessons yet.",
+  "weeklyView": "Weekly Plan (view only)",
+  "placeholders": {
+    "lessonName": "Lesson name (e.g., Math)"
+  },
+  "labels": {
+    "teacher": "Teacher",
+    "pickLesson": "Lesson",
+    "addStudent": "Add student to lesson",
+    "selectStudent": "Select a student"
+  },
+  "table": {
+    "lesson": "Lesson",
+    "roster": "Roster"
+  }
+}

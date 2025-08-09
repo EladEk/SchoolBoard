@@ -1,0 +1,14 @@
+{
+  "tabs": {
+    "users": "Users",
+    "classes": "Classes",
+    "lessons": "Lessons",
+    "timetable": "Timetable"
+  },
+  "dashboard": {
+    "title": "Admin Dashboard",
+    "subtitle": "Manage users, classes, lessons, and weekly timetable.",
+    "logout": "Logout",
+    "roleSeparator": " · "
+  }
+}

@@ -4,6 +4,23 @@ import { auth } from '../firebase/app';
 import { onAuthStateChanged, getIdTokenResult, User } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 
+type LocalSession = {
+  uid: string;
+  displayName?: string;
+  role?: string;
+  mode?: 'custom-firestore' | 'firebase-auth';
+  loggedInAt?: number;
+} | null;
+
+function getLocalSession(): LocalSession {
+  try {
+    const raw = localStorage.getItem('session');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function useCurrentUser(): { user: User | null; loading: boolean } {
   const [user, setUser] = useState<User | null>(() => auth.currentUser);
   const [loading, setLoading] = useState(true);
@@ -20,26 +37,33 @@ function useCurrentUser(): { user: User | null; loading: boolean } {
 }
 
 /** AuthGate
- * Renders children only when a user is signed in.
- * Redirects to / if unauthenticated.
+ * Allows through if EITHER:
+ *  - a Firebase user exists, OR
+ *  - a local custom session exists in localStorage
  */
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useCurrentUser();
   const nav = useNavigate();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) nav('/');
+    if (loading) return;
+    const sess = getLocalSession();
+    if (!user && !sess) {
+      nav('/');
+    } else {
+      setReady(true);
+    }
   }, [loading, user, nav]);
 
-  if (loading) return <div style={{ color: '#fff', textAlign: 'center', paddingTop: '20%' }}>Loading…</div>;
-  if (!user) return null;
+  if (!ready) return <div style={{ color: '#fff', textAlign: 'center', paddingTop: '20%' }}>Loading…</div>;
   return <>{children}</>;
 };
 
 /** RoleGate
- * Checks custom claim "role" from the ID token.
- * Accepts any of the provided roles (e.g., ['admin'], ['teacher','admin']).
- * Forces a token refresh so newly set claims are honored immediately.
+ * Accepts if role matches EITHER:
+ *  - Firebase custom claim "role"
+ *  - localStorage session.role
  */
 export const RoleGate: React.FC<{ roles: string[]; children: React.ReactNode }> = ({ roles, children }) => {
   const { user, loading } = useCurrentUser();
@@ -50,36 +74,43 @@ export const RoleGate: React.FC<{ roles: string[]; children: React.ReactNode }> 
     let alive = true;
 
     async function check() {
-      if (loading) return; // wait for auth to settle
+      if (loading) return;
+
+      const sess = getLocalSession();
+      // First preference: local session (custom Firestore logins)
+      if (sess?.role && roles.includes(sess.role)) {
+        if (alive) setAllowed(true);
+        return;
+      }
+
+      // Otherwise, fall back to Firebase Auth + claims
       if (!user) {
-        setAllowed(false);
-        nav('/');
+        if (alive) {
+          setAllowed(false);
+          nav('/unauthorized');
+        }
         return;
       }
 
       try {
-        // Force refresh to include latest custom claims (e.g., after running setAdmin)
         const tokenRes = await getIdTokenResult(user, true);
         const userRole = (tokenRes.claims?.role as string | undefined) || '';
-
-        // Debug (optional): console.log('RoleGate claims:', tokenRes.claims);
-
         const ok = roles.includes(userRole);
-        if (!alive) return;
-        setAllowed(ok);
-        if (!ok) nav('/unauthorized');
+        if (alive) {
+          setAllowed(ok);
+          if (!ok) nav('/unauthorized');
+        }
       } catch (err) {
         console.error('RoleGate error reading claims:', err);
-        if (!alive) return;
-        setAllowed(false);
-        nav('/unauthorized');
+        if (alive) {
+          setAllowed(false);
+          nav('/unauthorized');
+        }
       }
     }
 
     check();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [user, loading, roles, nav]);
 
   if (loading || allowed === null) {

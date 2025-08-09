@@ -39,7 +39,6 @@ export default function LoginPage() {
     const cred = await signInWithEmailAndPassword(auth, email, pass);
     const uid = cred.user.uid;
 
-    // Old system stored roles under /users/{uid}
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (!userDoc.exists()) {
       throw new Error('Admin profile not found under /users/{uid}');
@@ -63,26 +62,48 @@ export default function LoginPage() {
     navigate('/admin');
   }
 
-  async function findAppUserByName(nameRaw: string) {
-    const nameLower = nameRaw.toLowerCase();
+  // ---- NEW: look up by username/usernameLower first, then displayName/displayNameLower, then email
+  async function findAppUser(inputRaw: string) {
+    const input = inputRaw.trim();
+    const lower = input.toLowerCase();
 
-    // 1) Exact displayName
+    // username exact
     let snap = await getDocs(
-      query(collection(db, 'appUsers'), where('displayName', '==', nameRaw), limit(1))
+      query(collection(db, 'appUsers'), where('username', '==', input), limit(1))
     );
     if (!snap.empty) return snap.docs[0];
 
-    // 2) Case-insensitive if you stored displayNameLower
+    // usernameLower
     snap = await getDocs(
-      query(collection(db, 'appUsers'), where('displayNameLower', '==', nameLower), limit(1))
+      query(collection(db, 'appUsers'), where('usernameLower', '==', lower), limit(1))
     );
     if (!snap.empty) return snap.docs[0];
+
+    // displayName exact
+    snap = await getDocs(
+      query(collection(db, 'appUsers'), where('displayName', '==', input), limit(1))
+    );
+    if (!snap.empty) return snap.docs[0];
+
+    // displayNameLower
+    snap = await getDocs(
+      query(collection(db, 'appUsers'), where('displayNameLower', '==', lower), limit(1))
+    );
+    if (!snap.empty) return snap.docs[0];
+
+    // email (optional)
+    if (isEmail(input)) {
+      snap = await getDocs(
+        query(collection(db, 'appUsers'), where('email', '==', input), limit(1))
+      );
+      if (!snap.empty) return snap.docs[0];
+    }
 
     return null;
   }
 
-  async function loginWithCustomAuth(nameRaw: string, pass: string) {
-    const docRef = await findAppUserByName(nameRaw);
+  async function loginWithCustomAuth(identifier: string, pass: string) {
+    const docRef = await findAppUser(identifier);
     if (!docRef) throw new Error('User not found');
 
     const data = docRef.data() as any;
@@ -95,34 +116,27 @@ export default function LoginPage() {
     if (isBcryptHash(storedHash)) {
       ok = bcrypt.compareSync(pass, storedHash);
     } else {
-      // legacy SHA-256(salt + password) or SHA-256(password) if no salt
       const candidate = await sha256Hex((storedSalt || '') + pass);
       ok = candidate === storedHash;
     }
     if (!ok) throw new Error('Wrong password');
 
-    const role: Role = (data.role || 'admin') as Role;
+    const role: Role = (data.role || 'student') as Role;
     const session = {
       uid: docRef.id,
-      displayName: data.displayName || nameRaw,
+      displayName: data.displayName || data.username || `${data.firstName ?? ''} ${data.lastName ?? ''}`.trim() || identifier,
       role,
       loggedInAt: Date.now(),
       mode: 'custom-firestore',
     };
     localStorage.setItem('session', JSON.stringify(session));
 
-    // Redirect by role
     switch (role) {
-      case 'admin':
-        navigate('/admin'); break;
-      case 'teacher':
-        navigate('/teacher'); break;
-      case 'student':
-        navigate('/student'); break;
-      case 'kiosk':
-        navigate('/display'); break;
-      default:
-        navigate('/');
+      case 'admin': navigate('/admin'); break;
+      case 'teacher': navigate('/teacher'); break;
+      case 'student': navigate('/student'); break;
+      case 'kiosk': navigate('/display'); break;
+      default: navigate('/');
     }
   }
 
@@ -136,11 +150,9 @@ export default function LoginPage() {
 
     try {
       if (isEmail(input)) {
-        // OLD WAY (Admin via Firebase Auth)
-        await loginWithFirebaseAuth(input, password);
+        await loginWithFirebaseAuth(input, password);   // admins via Firebase Auth
       } else {
-        // NEW WAY (Custom Firestore appUsers)
-        await loginWithCustomAuth(input, password);
+        await loginWithCustomAuth(input, password);     // teachers/students/kiosk via appUsers
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -159,14 +171,14 @@ export default function LoginPage() {
         <h1 className="text-xl font-semibold">Sign in</h1>
 
         <div className="space-y-1">
-          <label className="text-sm text-neutral-300">Display name or Admin email</label>
+          <label className="text-sm text-neutral-300">Username / Display name / Admin email</label>
           <input
             type="text"
             value={displayNameOrEmail}
             onChange={(e) => setDisplayNameOrEmail(e.target.value)}
             className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
             autoComplete="username"
-            placeholder="e.g. elad / or admin email"
+            placeholder="e.g. elad2  — or admin email"
           />
         </div>
 

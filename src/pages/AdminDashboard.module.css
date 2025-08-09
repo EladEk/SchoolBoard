@@ -1,0 +1,127 @@
+:root {
+  --dash-bg: #0b0b0c;
+  --dash-surface: #141416;
+  --dash-surface-2: #1b1c1f;
+  --dash-border: #2a2b30;
+  --dash-muted: #a6a7ab;
+  --dash-text: #f2f3f5;
+  --dash-danger: #dc2626;
+  --dash-danger-600: #b91c1c;
+
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --shadow-1: 0 6px 18px rgba(0,0,0,.35);
+}
+
+/* page shell */
+.page {
+  min-height: 100vh;
+  background: var(--dash-bg);
+  color: var(--dash-text);
+}
+
+/* header */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(20,20,22,.9);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--dash-border);
+}
+
+.headerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 12px;
+  padding-inline: 24px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  font-weight: 600;
+  font-size: clamp(18px, 2.2vw, 22px);
+}
+
+.subtitle {
+  display: none;
+  color: var(--dash-muted);
+}
+@media (min-width: 768px) {
+  .subtitle { display: inline-block; }
+}
+
+.rightControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sessionInfo {
+  font-size: 13px;
+  color: #d6d7db;
+}
+.roleSep {
+  color: var(--dash-muted);
+}
+
+/* logout */
+.logoutBtn {
+  background: var(--dash-danger);
+  color: #fff;
+  border: 1px solid var(--dash-danger-600);
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .2s ease, transform .05s ease;
+}
+.logoutBtn:hover { background: var(--dash-danger-600); }
+.logoutBtn:active { transform: translateY(1px); }
+
+/* tabs */
+.tabsBar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-inline: 24px;
+  padding-block-end: 12px;
+}
+
+.tabBtn {
+  background: #16171b;
+  border: 1px solid var(--dash-border);
+  color: var(--dash-text);
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, transform .05s ease;
+}
+.tabBtn:hover { background: #1f2026; }
+.tabBtn:active { transform: translateY(1px); }
+
+.tabBtnActive {
+  background: #26272e;
+  border-color: #3a3b44;
+}
+
+/* body */
+.main {
+  padding: 24px;
+}
+
+.section {
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-border);
+  border-radius: 20px;
+  padding: 16px;
+}
+
+/* RTL niceties */
+html[dir="rtl"] .titleRow { flex-direction: row-reverse; }
+html[dir="rtl"] .rightControls { flex-direction: row-reverse; }

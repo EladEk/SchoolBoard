@@ -4,24 +4,16 @@ import UsersAdmin from '../components/admin/UsersAdmin';
 import ClassesAdmin from '../components/admin/ClassesAdmin';
 import LessonsAdmin from '../components/admin/LessonsAdmin';
 import LessonsScheduler from '../components/lessons/LessonsScheduler';
-
-const tabs = [
-  { key: 'users', label: 'Users' },
-  { key: 'classes', label: 'Classes' },
-  { key: 'lessons', label: 'Lessons' },
-  { key: 'timetable', label: 'Timetable' },
-] as const;
+import { useTranslation } from 'react-i18next';
+import styles from './AdminDashboard.module.css';
 
 export default function AdminDashboard() {
-  const [active, setActive] = useState<(typeof tabs)[number]['key']>('users');
+  const { t } = useTranslation();
+  const [active, setActive] = useState<'users' | 'classes' | 'lessons' | 'timetable'>('users');
   const navigate = useNavigate();
 
   const session = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('session') || '{}') || {};
-    } catch {
-      return {};
-    }
+    try { return JSON.parse(localStorage.getItem('session') || '{}') || {}; } catch { return {}; }
   }, []);
 
   function handleLogout() {
@@ -30,58 +22,53 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className={styles.page}>
       {/* Header / Top Nav */}
-      <header className="sticky top-0 z-40 bg-neutral-900/90 backdrop-blur border-b border-neutral-800">
-        <div className="px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-semibold">Admin Dashboard</h1>
-            <span className="hidden md:block text-neutral-400">
-              Manage users, classes, lessons, and weekly timetable.
-            </span>
+      <header className={styles.header}>
+        <div className={styles.headerBar}>
+          <div className={styles.titleRow}>
+            <h1 className={styles.title}>{t('dashboard:dashboard.title')}</h1>
+            <span className={styles.subtitle}>{t('dashboard:dashboard.subtitle')}</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className={styles.rightControls}>
             {/* Session info */}
-            <div className="text-sm text-neutral-300">
-              <span className="font-medium">{session?.displayName || 'Admin'}</span>
+            <div className={styles.sessionInfo}>
+              <span style={{ fontWeight: 600 }}>{session?.displayName || 'Admin'}</span>
               {session?.role ? (
-                <span className="text-neutral-400"> · {session.role}</span>
+                <span className={styles.roleSep}>
+                  {t('dashboard:dashboard.roleSeparator')}{session.role}
+                </span>
               ) : null}
             </div>
 
             {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white transition"
-            >
-              Logout
+            <button onClick={handleLogout} className={styles.logoutBtn}>
+              {t('dashboard:dashboard.logout')}
             </button>
           </div>
         </div>
 
         {/* Tabs bar under header */}
-        <nav className="px-6 pb-3 flex gap-2 flex-wrap">
-          {tabs.map((t) => (
+        <nav className={styles.tabsBar}>
+          {(['users','classes','lessons','timetable'] as const).map((key) => (
             <button
-              key={t.key}
-              onClick={() => setActive(t.key)}
+              key={key}
+              onClick={() => setActive(key)}
               className={[
-                'px-3 py-2 rounded-xl border transition',
-                active === t.key
-                  ? 'bg-neutral-800 border-neutral-700'
-                  : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-800',
+                styles.tabBtn,
+                active === key ? styles.tabBtnActive : ''
               ].join(' ')}
             >
-              {t.label}
+              {t(`dashboard:tabs.${key}`)}
             </button>
           ))}
         </nav>
       </header>
 
       {/* Page body */}
-      <main className="p-6">
-        <section className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
+      <main className={styles.main}>
+        <section className={styles.section}>
           {active === 'users' && <UsersAdmin />}
           {active === 'classes' && <ClassesAdmin />}
           {active === 'lessons' && <LessonsAdmin />}

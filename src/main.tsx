@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import './styles/global.css';
+import './i18n'; 
 
 import DisplayPage from './pages/DisplayPage';
 import AdminDashboard from './pages/AdminDashboard';

@@ -1,0 +1,37 @@
+{
+  "manage": "Manage Lessons",
+  "name": "Lesson name",
+  "teacherIsStudent": "Student is the teacher",
+  "teacherByUsername": "Teacher (by username)",
+  "studentByUsername": "Student (by username)",
+  "selectTeacher": "Select teacher…",
+  "selectStudent": "Select student…",
+  "add": "Add lesson",
+  "adding": "Adding…",
+  "table": {
+    "name": "Lesson name",
+    "teacher": "Teacher"
+  },
+  "editTitle": "Edit lesson",
+  "toasts": {
+    "loadTeachersFail": "Failed to load teachers: {{msg}}",
+    "loadStudentsFail": "Failed to load students: {{msg}}",
+    "loadLessonsFail": "Failed to load lessons: {{msg}}",
+    "selectValidStudent": "Please select a valid student (by username)",
+    "selectValidTeacher": "Please select a valid teacher (by username)",
+    "created": "Lesson \"{{name}}\" created",
+    "createFail": "Create failed: {{msg}}",
+    "updated": "Lesson \"{{name}}\" updated",
+    "updateFail": "Update failed: {{msg}}",
+    "deleted": "Lesson deleted",
+    "deleteFail": "Delete failed: {{msg}}",
+    "importing": "Importing…",
+    "importDone": "Import done: {{created}} created, {{updated}} updated, {{skipped}} skipped",
+    "importFail": "Import failed: {{msg}}",
+    "templateDownloaded": "Template downloaded",
+    "exported": "Exported lessons"
+  },
+  "labels": {
+    "studentSuffix": "(student)"
+  }
+}

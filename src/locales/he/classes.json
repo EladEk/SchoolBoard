@@ -1,0 +1,30 @@
+{
+  "manage": "ניהול כיתות",
+  "location": "מיקום הכיתה",
+  "name": "שם הכיתה",
+  "add": "הוספת כיתה",
+  "adding": "מוסיף…",
+  "table": {
+    "classId": "מזהה כיתה",
+    "location": "מיקום",
+    "name": "שם"
+  },
+  "editTitle": "עריכת כיתה",
+  "classId": "מזהה כיתה",
+  "toasts": {
+    "loadFail": "נכשל בטעינת כיתות: {{msg}}",
+    "created": "הכיתה \"{{classId}}\" נוצרה",
+    "createFail": "היצירה נכשלה: {{msg}}",
+    "allRequired": "כל השדות נדרשים",
+    "dupOther": "כבר קיימת כיתה עם מזהה \"{{classId}}\"",
+    "updated": "הכיתה \"{{classId}}\" עודכנה",
+    "updateFail": "העדכון נכשל: {{msg}}",
+    "deleted": "הכיתה נמחקה",
+    "deleteFail": "המחיקה נכשלה: {{msg}}",
+    "importing": "מייבא…",
+    "importDone": "הייבוא הושלם: {{created}} נוצרו, {{updated}} עודכנו, {{skipped}} דולגו",
+    "importFail": "הייבוא נכשל: {{msg}}",
+    "templateDownloaded": "התבנית הורדה",
+    "exported": "הכיתות יוצאו"
+  }
+}

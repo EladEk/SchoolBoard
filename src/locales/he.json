@@ -1,0 +1,168 @@
+{
+  "tabs": {
+    "users": "משתמשים",
+    "classes": "כיתות",
+    "lessons": "שיעורים",
+    "timetable": "מערכת שעות"
+  },
+  "dashboard": {
+    "title": "לוח ניהול",
+    "subtitle": "ניהול משתמשים, כיתות, שיעורים ומערכת שבועית.",
+    "logout": "התנתקות",
+    "roleSeparator": " · "
+  },
+
+  "common": {
+    "downloadTemplate": "הורדת תבנית",
+    "export": "יצוא (.xlsx)",
+    "import": "ייבוא (.xlsx / .csv)",
+    "cancel": "ביטול",
+    "saveChanges": "שמירת שינויים",
+    "edit": "עריכה",
+    "delete": "מחיקה",
+    "actions": "פעולות",
+    "loading": "טוען…",
+    "saving": "שומר…",
+    "saved": "נשמר!",
+    "error": "שגיאה",
+    "noItems": "אין פריטים",
+    "regenerate": "יצירת מזהה חדש",
+    "close": "סגור",
+    "selectOption": "בחר…"
+  },
+
+  "users": {
+    "manage": "ניהול משתמשים",
+    "firstName": "שם פרטי",
+    "lastName": "שם משפחה",
+    "username": "שם משתמש",
+    "password": "סיסמה",
+    "role": "תפקיד",
+    "create": "יצירת משתמש",
+    "creating": "יוצר…",
+    "table": {
+      "username": "שם משתמש",
+      "first": "פרטי",
+      "last": "משפחה",
+      "role": "תפקיד"
+    },
+    "editTitle": "עריכת משתמש",
+    "newPasswordOptional": "סיסמה חדשה (אופציונלי)",
+    "keepCurrentPassword": "להשאיר ריק כדי לשמור על הנוכחית",
+    "toasts": {
+      "loadFail": "נכשל בטעינת משתמשים: {{msg}}",
+      "dupUser": "שם המשתמש \"{{username}}\" כבר קיים",
+      "created": "המשתמש \"{{username}}\" נוצר",
+      "createFail": "היצירה נכשלה: {{msg}}",
+      "dupOther": "משתמש אחר עם השם \"{{username}}\" כבר קיים",
+      "updated": "המשתמש \"{{username}}\" עודכן",
+      "updateFail": "העדכון נכשל: {{msg}}",
+      "deleted": "המשתמש נמחק",
+      "deleteFail": "המחיקה נכשלה: {{msg}}",
+      "importing": "מייבא…",
+      "importDone": "הייבוא הושלם: {{created}} נוצרו, {{updated}} עודכנו, {{skipped}} דולגו",
+      "importFail": "הייבוא נכשל: {{msg}}",
+      "templateDownloaded": "התבנית הורדה",
+      "exported": "המשתמשים יוצאו"
+    }
+  },
+
+  "classes": {
+    "manage": "ניהול כיתות",
+    "location": "מיקום הכיתה",
+    "name": "שם הכיתה",
+    "add": "הוספת כיתה",
+    "adding": "מוסיף…",
+    "table": {
+      "classId": "מזהה כיתה",
+      "location": "מיקום",
+      "name": "שם"
+    },
+    "editTitle": "עריכת כיתה",
+    "classId": "מזהה כיתה",
+    "toasts": {
+      "loadFail": "נכשל בטעינת כיתות: {{msg}}",
+      "created": "הכיתה \"{{classId}}\" נוצרה",
+      "createFail": "היצירה נכשלה: {{msg}}",
+      "allRequired": "כל השדות נדרשים",
+      "dupOther": "כבר קיימת כיתה עם מזהה \"{{classId}}\"",
+      "updated": "הכיתה \"{{classId}}\" עודכנה",
+      "updateFail": "העדכון נכשל: {{msg}}",
+      "deleted": "הכיתה נמחקה",
+      "deleteFail": "המחיקה נכשלה: {{msg}}",
+      "importing": "מייבא…",
+      "importDone": "הייבוא הושלם: {{created}} נוצרו, {{updated}} עודכנו, {{skipped}} דולגו",
+      "importFail": "הייבוא נכשל: {{msg}}",
+      "templateDownloaded": "התבנית הורדה",
+      "exported": "הכיתות יוצאו"
+    }
+  },
+
+  "lessons": {
+    "manage": "ניהול שיעורים",
+    "name": "שם השיעור",
+    "teacherIsStudent": "התלמיד הוא המורה",
+    "teacherByUsername": "מורה (לפי שם משתמש)",
+    "studentByUsername": "תלמיד (לפי שם משתמש)",
+    "selectTeacher": "בחר מורה…",
+    "selectStudent": "בחר תלמיד…",
+    "add": "הוספת שיעור",
+    "adding": "מוסיף…",
+    "table": {
+      "name": "שם השיעור",
+      "teacher": "מורה"
+    },
+    "editTitle": "עריכת שיעור",
+    "toasts": {
+      "loadTeachersFail": "נכשל בטעינת מורים: {{msg}}",
+      "loadStudentsFail": "נכשל בטעינת תלמידים: {{msg}}",
+      "loadLessonsFail": "נכשל בטעינת שיעורים: {{msg}}",
+      "selectValidStudent": "בחר תלמיד תקין (לפי שם משתמש)",
+      "selectValidTeacher": "בחר מורה תקין (לפי שם משתמש)",
+      "created": "השיעור \"{{name}}\" נוצר",
+      "createFail": "היצירה נכשלה: {{msg}}",
+      "updated": "השיעור \"{{name}}\" עודכן",
+      "updateFail": "העדכון נכשל: {{msg}}",
+      "deleted": "השיעור נמחק",
+      "deleteFail": "המחיקה נכשלה: {{msg}}",
+      "importing": "מייבא…",
+      "importDone": "הייבוא הושלם: {{created}} נוצרו, {{updated}} עודכנו, {{skipped}} דולגו",
+      "importFail": "הייבוא נכשל: {{msg}}",
+      "templateDownloaded": "התבנית הורדה",
+      "exported": "השיעורים יוצאו"
+    },
+    "labels": {
+      "studentSuffix": "(תלמיד)"
+    }
+  },
+
+  "timetable": {
+    "title": "תזמון שיעורים",
+    "legend": {
+      "selectedExisting": "שיעור שנבחר (קיים)",
+      "taken": "הכיתה תפוסה לשיעור אחר",
+      "pending": "שינוי בהמתנה"
+    },
+    "emptyPrompt": "בחר כיתה כדי להתחיל לשבץ.",
+    "headers": {
+      "timeDay": "שעה \\ יום"
+    },
+    "labels": {
+      "class": "כיתה",
+      "lesson": "שיעור",
+      "placed": "מוקמו <b>{{count}}</b>",
+      "save": "שמור",
+      "cancel": "בטל",
+      "loadedEntries": "רשומות שנטענו: {{count}}"
+    },
+    "toasts": {
+      "loadFailed": "נכשל בטעינת המערכת: {{msg}}",
+      "prepareFailed": "נכשל בהכנת השיבוץ: {{msg}}",
+      "saving": "שומר…",
+      "saved": "נשמר!",
+      "saveFailed": "שמירה נכשלה",
+      "selectLessonFirst": "בחר שיעור לפני הוספה."
+    },
+    "days": ["א", "ב", "ג", "ד", "ה", "ו", "ש"]
+  }
+}

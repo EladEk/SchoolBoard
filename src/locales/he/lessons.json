@@ -1,0 +1,37 @@
+{
+  "manage": "ניהול שיעורים",
+  "name": "שם השיעור",
+  "teacherIsStudent": "התלמיד הוא המורה",
+  "teacherByUsername": "מורה (לפי שם משתמש)",
+  "studentByUsername": "תלמיד (לפי שם משתמש)",
+  "selectTeacher": "בחר מורה…",
+  "selectStudent": "בחר תלמיד…",
+  "add": "הוספת שיעור",
+  "adding": "מוסיף…",
+  "table": {
+    "name": "שם השיעור",
+    "teacher": "מורה"
+  },
+  "editTitle": "עריכת שיעור",
+  "toasts": {
+    "loadTeachersFail": "נכשל בטעינת מורים: {{msg}}",
+    "loadStudentsFail": "נכשל בטעינת תלמידים: {{msg}}",
+    "loadLessonsFail": "נכשל בטעינת שיעורים: {{msg}}",
+    "selectValidStudent": "בחר תלמיד תקין (לפי שם משתמש)",
+    "selectValidTeacher": "בחר מורה תקין (לפי שם משתמש)",
+    "created": "השיעור \"{{name}}\" נוצר",
+    "createFail": "היצירה נכשלה: {{msg}}",
+    "updated": "השיעור \"{{name}}\" עודכן",
+    "updateFail": "העדכון נכשל: {{msg}}",
+    "deleted": "השיעור נמחק",
+    "deleteFail": "המחיקה נכשלה: {{msg}}",
+    "importing": "מייבא…",
+    "importDone": "הייבוא הושלם: {{created}} נוצרו, {{updated}} עודכנו, {{skipped}} דולגו",
+    "importFail": "הייבוא נכשל: {{msg}}",
+    "templateDownloaded": "התבנית הורדה",
+    "exported": "השיעורים יוצאו"
+  },
+  "labels": {
+    "studentSuffix": "(תלמיד)"
+  }
+}

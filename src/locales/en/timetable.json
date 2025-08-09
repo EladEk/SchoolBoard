@@ -1,0 +1,19 @@
+{
+  "title": "Timetable",
+  "headers": { "timeDay": "Time / Day" },
+  "labels": {
+    "class": "Class",
+    "lesson": "Lesson",
+    "save": "Save",
+    "cancel": "Cancel",
+    "placed": "Placed for selected lesson: <b>{{count}}</b>",
+    "loadedEntries": "Loaded {{count}} slots.",
+    "selectLessonFirst": "Select a lesson first."
+  },
+  "legend": {
+    "selectedExisting": "Selected lesson (existing)",
+    "taken": "Class occupied by another lesson",
+    "pending": "Pending change"
+  },
+  "emptyPrompt": "Pick a class to start scheduling."
+}
