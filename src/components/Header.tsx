@@ -1,56 +1,45 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import styles from './Header.module.css';
 
 type HeaderProps = {
   title?: string;
   userName?: string;
   role?: string;
+  navMode?: 'full' | 'logoutOnly' | 'none';
 };
 
-export default function Header({ title = 'SchoolBoard', userName, role }: HeaderProps) {
+export default function Header({
+  title = 'SchoolBoard',
+  userName,
+  role,
+  navMode = 'full',
+}: HeaderProps) {
   const navigate = useNavigate();
-
-  function handleLogout() {
-    localStorage.removeItem('session');
-    navigate('/');
-  }
+  const logout = () => { localStorage.removeItem('session'); navigate('/'); };
 
   return (
-    <header className="bg-neutral-900 text-white shadow-md px-6 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <span className="text-xl font-semibold">{title}</span>
-        {role && (
-          <span className="text-sm text-neutral-400">
-            {role} {userName ? `– ${userName}` : ''}
+    <header className={styles.wrapper}>
+      <div className={styles.left}>
+        <span className={styles.title}>{title}</span>
+        {(role || userName) && (
+          <span className={styles.meta}>
+            {role || ''}{(role && userName) ? ' – ' : ''}{userName || ''}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-4">
-        {/* Example nav links */}
-        <button
-          onClick={() => navigate('/admin')}
-          className="hover:text-emerald-400 transition"
-        >
-          Dashboard
-        </button>
-        <button
-          onClick={() => navigate('/classes')}
-          className="hover:text-emerald-400 transition"
-        >
-          Classes
-        </button>
-        <button
-          onClick={() => navigate('/lessons')}
-          className="hover:text-emerald-400 transition"
-        >
-          Lessons
-        </button>
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 hover:bg-red-500 px-3 py-1 rounded"
-        >
-          Logout
-        </button>
+
+      <div className={styles.right}>
+        {navMode === 'full' && (
+          <>
+            <button onClick={() => navigate('/admin')} className={styles.linkBtn}>Dashboard</button>
+            <button onClick={() => navigate('/classes')} className={styles.linkBtn}>Classes</button>
+            <button onClick={() => navigate('/lessons')} className={styles.linkBtn}>Lessons</button>
+          </>
+        )}
+        {navMode !== 'none' && (
+          <button onClick={logout} className={styles.logoutBtn}>Logout</button>
+        )}
       </div>
     </header>
   );

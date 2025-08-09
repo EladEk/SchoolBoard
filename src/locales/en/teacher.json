@@ -1,5 +1,12 @@
 {
   "dashboardTitle": "Teacher Dashboard",
+  "tabs": {
+    "view": "View",
+    "edit": "Edit"
+  },
+  "weekTitle": "My weekly schedule",
+  "selectedSlot": "Selected slot",
+  "noStudentsForClass": "No students found for this class (check student class assignments).",
   "myLessons": "My Lessons",
   "subtitle": "Create lessons you teach, edit names, and manage each lesson's roster.",
   "creating": "Creating…",

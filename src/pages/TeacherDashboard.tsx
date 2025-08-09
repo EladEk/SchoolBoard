@@ -1,61 +1,75 @@
-import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import TeacherLessons from '../components/teacher/TeacherLessons';
-import TeacherTimetableView from '../components/lessons/TeacherTimetableView';
+// src/pages/TeacherDashboard.tsx
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import Header from '../components/Header';
+import TeacherTimetableView from '../components/lessons/TeacherTimetableView';
+import TeacherLessons from '../components/teacher/TeacherLessons';
+import './TeacherDashboard.css';
+
+type TabKey = 'view' | 'edit';
 
 export default function TeacherDashboard() {
-  const { t } = useTranslation(['teacher', 'common']);
-  const navigate = useNavigate();
+  const { t } = useTranslation(['teacher']);
+
+  // Persist the active tab in localStorage so it survives refresh
+  const [tab, setTab] = useState<TabKey>(() => {
+    const saved = (localStorage.getItem('teacherTab') as TabKey) || 'view';
+    return saved === 'edit' ? 'edit' : 'view';
+  });
+  const setTabAndSave = (next: TabKey) => {
+    setTab(next);
+    localStorage.setItem('teacherTab', next);
+  };
 
   const session = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('session') || '{}') || {};
-    } catch {
-      return {};
-    }
+    try { return JSON.parse(localStorage.getItem('session') || '{}') || {}; }
+    catch { return {}; }
   }, []);
-
-  function handleLogout() {
-    localStorage.removeItem('session');
-    navigate('/');
-  }
+  const displayName = session?.displayName || session?.username || session?.user?.username || '';
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-neutral-900/90 backdrop-blur border-b border-neutral-800">
-        <div className="px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-semibold">
-              {t('teacher:dashboardTitle')}
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-neutral-300">
-              <span className="font-medium">
-                {session?.displayName || t('teacher:labels.teacher')}
-              </span>
-              {session?.role ? (
-                <span className="text-neutral-400"> · {session.role}</span>
-              ) : null}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white transition"
-            >
-              {t('common:logout')}
-            </button>
-          </div>
-        </div>
+    <div className="tdash-page">
+      <Header
+        title={t('teacher:dashboardTitle', 'Teacher Schedule')}
+        userName={displayName}
+        role={session?.role}
+        navMode="logoutOnly"
+      />
+
+      <header className="tdash-header">
+        <nav className="tdash-tabs" aria-label={t('teacher:dashboardTitle', 'Teacher Schedule')}>
+          <button
+            type="button"
+            className={`tdash-tab ${tab === 'view' ? 'active' : ''}`}
+            onClick={() => setTabAndSave('view')}
+            aria-current={tab === 'view' ? 'page' : undefined}
+          >
+            {t('teacher:tabs.view', 'View')}
+          </button>
+          <button
+            type="button"
+            className={`tdash-tab ${tab === 'edit' ? 'active' : ''}`}
+            onClick={() => setTabAndSave('edit')}
+            aria-current={tab === 'edit' ? 'page' : undefined}
+          >
+            {t('teacher:tabs.edit', 'Edit')}
+          </button>
+        </nav>
       </header>
 
-      {/* Main content */}
-      <main className="p-6" style={{ display: 'grid', gap: 24 }}>
-        <p>{t('teacher:subtitle')}</p>
-        <TeacherLessons />
-        {/* Read-only timetable for this teacher */}
-        <TeacherTimetableView />
+      <main className="tdash-main">
+        {tab === 'view' && (
+          <section className="tdash-section" aria-label={t('teacher:tabs.view', 'View')}>
+            {/* VIEW: weekly plan (lessons). Clicking a class cell shows students below the grid. */}
+            <TeacherTimetableView />
+          </section>
+        )}
+        {tab === 'edit' && (
+          <section className="tdash-section" aria-label={t('teacher:tabs.edit', 'Edit')}>
+            {/* EDIT: manage lessons for this teacher */}
+            <TeacherLessons />
+          </section>
+        )}
       </main>
     </div>
   );

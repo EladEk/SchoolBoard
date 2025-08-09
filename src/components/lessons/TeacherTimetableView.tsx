@@ -1,4 +1,3 @@
-// src/components/lessons/TeacherTimetableView.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   collection, doc, getDoc, getDocs, onSnapshot, query, where
@@ -16,6 +15,12 @@ type AppUser = {
   firstName?: string;
   lastName?: string;
   role: Role;
+  // possible class assignment fields (we'll check several):
+  classId?: string;        // business ClassID
+  classDocId?: string;     // Firestore class doc id
+  className?: string;      // class name
+  classes?: string[];      // array of ids/names
+  classIds?: string[];     // array of business IDs
 };
 type SchoolClass = { id: string; name: string; location?: string; classId?: string };
 type Lesson = {
@@ -26,6 +31,8 @@ type Lesson = {
   studentUserId?: string | null;
   teacherFirstName?: string | null; teacherLastName?: string | null; teacherUsername?: string | null;
   studentFirstName?: string | null; studentLastName?: string | null; studentUsername?: string | null;
+  // IMPORTANT: roster coming from TeacherLessons
+  studentsUserIds?: string[];
 };
 type Entry = {
   id: string;
@@ -58,24 +65,23 @@ function normalizeEntry(id: string, raw: any): Entry {
 
 type Props = { teacherUsername?: string };
 
-// ---------- Robust session resolver ----------
+// ---------- Resolve current user from session or override ----------
 async function resolveUserFromSession(overrideTeacherUsername?: string): Promise<AppUser | null> {
   let session: any = {};
   try { session = JSON.parse(localStorage.getItem('session') || '{}') || {}; } catch {}
+
   const candidateIds = [
     session?.id, session?.uid, session?.userId, session?.user?.id, session?.user?.uid, session?.userDocId
   ].filter(Boolean);
 
-  // 1) Try by explicit Firestore doc id(s)
   for (const rawId of candidateIds) {
     try {
       const ref = doc(db, 'appUsers', String(rawId));
       const snap = await getDoc(ref);
       if (snap.exists()) return { id: snap.id, ...(snap.data() as any) };
-    } catch {/* ignore and continue */}
+    } catch { /* continue */ }
   }
 
-  // 2) Try by username (override → session.username → session.user.username)
   const username =
     (overrideTeacherUsername ||
      session?.username ||
@@ -100,24 +106,29 @@ async function resolveUserFromSession(overrideTeacherUsername?: string): Promise
     const s = await getDocs(query(collection(db, 'appUsers'), where('username', '==', username)));
     if (!s.empty) { const d = s.docs[0]; return { id: d.id, ...(d.data() as any) }; }
   }
-
   return null;
+}
+
+// ---------- Small helpers ----------
+function userLabel(u?: AppUser | null) {
+  if (!u) return '';
+  const full = [u.firstName||'', u.lastName||''].join(' ').replace(/\s+/g,' ').trim();
+  if (full && u.username) return `${full} (${u.username})`;
+  if (full) return full;
+  return u.username || '';
 }
 
 export default function TeacherTimetableView({ teacherUsername }: Props) {
   const { t, i18n } = useTranslation(['timetable','teacher','common']);
 
-  // ---------- Resolve target user (auto from session, or override) ----------
+  // ---------- Resolve target user ----------
   const [me, setMe] = useState<AppUser | null>(null);
-  const [whoErr, setWhoErr] = useState<string | null>(null);
 
   useEffect(() => {
     let canceled = false;
     (async () => {
       const u = await resolveUserFromSession(teacherUsername);
-      if (canceled) return;
-      if (u) { setMe(u); setWhoErr(null); }
-      else { setMe(null); setWhoErr(null); /* stay quiet if none found */ }
+      if (!canceled) setMe(u);
     })();
     return () => { canceled = true; };
   }, [teacherUsername]);
@@ -131,12 +142,13 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
     return () => unsub();
   }, []);
 
-  function classLabel(entry: Entry): string {
-    const byDocId = classes.find(c => c.id === entry.classId);
-    if (byDocId) return [byDocId.name, byDocId.location, byDocId.classId].filter(Boolean).join(' · ');
-    const byBizId = classes.find(c => c.classId === entry.classId);
-    if (byBizId) return [byBizId.name, byBizId.location, byBizId.classId].filter(Boolean).join(' · ');
-    return entry.classId || '';
+  function findClassByAnyId(classId: string): SchoolClass | undefined {
+    return classes.find(c => c.id === classId || (c.classId && c.classId === classId));
+  }
+  function classLabelByEntry(e: Entry): string {
+    const cls = findClassByAnyId(e.classId);
+    if (cls) return [cls.name, cls.location, cls.classId].filter(Boolean).join(' · ');
+    return e.classId || '';
   }
 
   // ---------- Load my lessons (teacher or student-teacher) ----------
@@ -162,7 +174,7 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
   const myLessonIds = useMemo(() => new Set(myLessons.map(l => l.id)), [myLessons]);
   const lessonNameOf = (id?: string) => id ? (myLessons.find(l=>l.id===id)?.name || '') : '';
 
-  // ---------- Load timetable entries for ALL my lessons (full week) ----------
+  // ---------- Load timetable entries (all lessons; chunked "in") ----------
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -171,8 +183,6 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
     if (!ids.length) { setEntries([]); return; }
 
     setLoading(true);
-
-    // Firestore "in" limit is 10 -> chunk
     const chunkSize = 10;
     const chunks: string[][] = [];
     for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize));
@@ -209,10 +219,9 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
     if (!Array.isArray(arr) || arr.length !== 7) return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     return arr;
   }, [t, i18n.language]);
-
   const dayIndexes = [0,1,2,3,4,5,6];
 
-  // Build lookup for each cell (day + slot)
+  // ---------- Build lookup for each cell (day + slot) ----------
   const cellMap = useMemo(() => {
     const m = new Map<string, Entry[]>();
     for (const e of entries) {
@@ -224,6 +233,98 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
     return m;
   }, [entries]);
 
+  // ---------- Load all students (once) and filter client-side ----------
+  const [allStudents, setAllStudents] = useState<AppUser[]>([]);
+  useEffect(() => {
+    const qStu = query(collection(db, 'appUsers'), where('role','==','student'));
+    const unsub = onSnapshot(qStu, s => {
+      const list = s.docs.map(d => ({ id: d.id, ...(d.data() as any)} as AppUser));
+      list.sort((a,b) => userLabel(a).localeCompare(userLabel(b)));
+      setAllStudents(list);
+    });
+    return () => unsub();
+  }, []);
+
+  const studentById = useMemo(() => {
+    const map = new Map<string, AppUser>();
+    for (const s of allStudents) map.set(s.id, s);
+    return map;
+  }, [allStudents]);
+
+  function studentMatchesClass(stu: AppUser, cls: SchoolClass): boolean {
+    const classDocId = cls.id;
+    const classBizId = cls.classId || '';
+    const className = cls.name || '';
+
+    const fields = [
+      stu.classDocId,
+      stu.classId,
+      stu.className,
+      ...(stu.classes || []),
+      ...(stu.classIds || []),
+    ]
+    .filter(Boolean)
+    .map(String);
+
+    return fields.includes(classDocId)
+        || (classBizId && fields.includes(classBizId))
+        || (className && fields.includes(className));
+  }
+
+  // ---------- Cell selection and students panel ----------
+  type SelectedCell = {
+    day: number;
+    sm: number;
+    em: number;
+    groups: Array<{
+      classId: string;
+      cls?: SchoolClass;
+      entries: Entry[];
+      students: AppUser[];
+      source: 'lessonRoster' | 'classMembership';
+    }>;
+  } | null;
+
+  const [selected, setSelected] = useState<SelectedCell>(null);
+
+  function handleCellClick(day: number, sm: number, em: number) {
+    const key = `${day}-${sm}-${em}`;
+    const cellEntries = (cellMap.get(key) || []).slice();
+    if (!cellEntries.length) { setSelected(null); return; }
+
+    // group by classId
+    const byClass = new Map<string, Entry[]>();
+    for (const e of cellEntries) {
+      const arr = byClass.get(e.classId) || [];
+      arr.push(e);
+      byClass.set(e.classId, arr);
+    }
+
+    const groups = Array.from(byClass.entries()).map(([classId, ents]) => {
+      const cls = findClassByAnyId(classId);
+
+      // 1) Try LESSON ROSTER: union of studentsUserIds across the lessons in this slot
+      const rosterSet = new Set<string>();
+      for (const e of ents) {
+        const l = myLessons.find(x => x.id === e.lessonId);
+        (l?.studentsUserIds || []).forEach(id => rosterSet.add(id));
+      }
+      const rosterStudents = Array.from(rosterSet)
+        .map(id => studentById.get(id))
+        .filter(Boolean) as AppUser[];
+
+      if (rosterStudents.length) {
+        return { classId, cls, entries: ents, students: rosterStudents, source: 'lessonRoster' as const };
+      }
+
+      // 2) Fallback: CLASS MEMBERSHIP
+      const classStudents = cls ? allStudents.filter(stu => studentMatchesClass(stu, cls)) : [];
+      return { classId, cls, entries: ents, students: classStudents, source: 'classMembership' as const };
+    });
+
+    setSelected({ day, sm, em, groups });
+  }
+
   return (
     <div className="ls-wrap">
       <div className="ls-header">
@@ -231,19 +332,12 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
           <span className="ls-title-dot" />
           {t('teacher:weekTitle', 'My weekly schedule')}
         </div>
-
-        <div className="ls-legend">
-          <span className="ls-badge">{t('timetable:legend.selectedExisting')}</span>
-          <span className="ls-badge">{t('timetable:legend.taken')}</span>
-          <span className="ls-badge">{t('timetable:legend.pending')}</span>
-        </div>
       </div>
 
       {/* status line */}
       <div style={{margin:'6px 2px', fontSize:12, color:'#9aa0a6'}}>
-        {me?.username ? `${me.firstName || ''} ${me.lastName || ''} (${me.username})`.trim() : ''}
+        {me ? userLabel(me) : ''}
         {loading ? ` · ${t('common:loading', 'Loading…')}` : ''}
-        {!me && !loading && whoErr ? `⚠ ${whoErr}` : ''}
       </div>
 
       {/* Weekly grid */}
@@ -265,22 +359,26 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
                   const key = `${dIdx}-${sm}-${em}`;
                   const cellEntries = cellMap.get(key) || [];
                   const has = cellEntries.length > 0;
+                  const isSelected = selected && selected.day===dIdx && selected.sm===sm && selected.em===em;
                   return (
                     <td
                       key={dIdx}
                       className="ls-td"
+                      onClick={() => handleCellClick(dIdx, sm, em)}
                       style={{
-                        backgroundColor: has ? '#0c4a6e' : '#141414',
+                        backgroundColor: has ? (isSelected ? '#145ea0' : '#0c4a6e') : '#141414',
                         color: has ? '#dbeafe' : '#c7c7c7',
-                        cursor: 'default'
+                        cursor: has ? 'pointer' : 'default',
+                        outline: isSelected ? '2px solid #60a5fa' : 'none',
+                        outlineOffset: isSelected ? '1px' : 0
                       }}
-                      title={cellEntries.map(e => `${lessonNameOf(e.lessonId)} — ${classLabel(e)}`).join('\n')}
+                      title={cellEntries.map(e => `${lessonNameOf(e.lessonId)} — ${classLabelByEntry(e)}`).join('\n')}
                     >
                       <div className="ls-cell">
                         <div className="ls-cell-text" style={{ display:'grid', gap: 4 }}>
                           {!has ? '—' : cellEntries.map(e=>(
                             <div key={e.id} style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                              {lessonNameOf(e.lessonId)} · {classLabel(e)}
+                              {lessonNameOf(e.lessonId)} · {classLabelByEntry(e)}
                             </div>
                           ))}
                         </div>
@@ -300,6 +398,40 @@ export default function TeacherTimetableView({ teacherUsername }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* Students panel under table */}
+      {selected && (
+        <div style={{ marginTop: 16, padding: 12, border:'1px solid #2b3542', borderRadius: 12, background:'#0f172a' }}>
+          <div style={{ fontWeight: 600, color:'#e5e7eb', marginBottom: 8 }}>
+            {t('teacher:selectedSlot', 'Selected slot:')} {daysLabels[selected.day]} {(() => {
+              const s = SLOTS.find(x=>x.sm===selected.sm && x.em===selected.em);
+              return s ? ` · ${s.start}–${s.end}` : '';
+            })()}
+          </div>
+
+          {selected.groups.map(g => (
+            <div key={g.classId} style={{ marginTop: 10 }}>
+              <div style={{ color:'#93c5fd', fontWeight:600, marginBottom:6 }}>
+                {g.cls ? [g.cls.name, g.cls.location, g.cls.classId].filter(Boolean).join(' · ') : g.classId}
+                <span style={{ marginLeft: 8, fontSize: 12, color:'#9aa0a6' }}>
+                </span>
+              </div>
+
+              {g.students.length ? (
+                <ul style={{ display:'grid', gap:4, gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', margin:0, paddingLeft:16 }}>
+                  {g.students.map(s => (
+                    <li key={s.id} style={{ color:'#e5e7eb' }}>{userLabel(s)}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div style={{ color:'#9aa0a6' }}>
+                  {t('teacher:noStudentsForClass', 'No students found for this class (check student class assignments).')}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
