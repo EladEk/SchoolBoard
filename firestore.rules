@@ -1,40 +1,46 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{db}/documents {
-    function role() {
-      return get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role;
-    }
+  match /databases/{database}/documents {
 
-    match /users/{uid} {
-      allow read: if request.auth != null && (uid == request.auth.uid || role() == 'admin');
-      allow write: if request.auth != null && (uid == request.auth.uid || role() == 'admin');
-    }
-
+    // PUBLIC READ (hallway screens need to read freely)
     match /classes/{id} {
-      allow read: if true; // allow kiosk to read
-      allow write: if request.auth != null && role() == 'admin';
-    }
-
-    match /subjects/{id} {
       allow read: if true;
-      allow write: if request.auth != null && role() == 'admin';
+      allow write: if true;   // frontend enforces "admin" in UI
     }
-
     match /lessons/{id} {
       allow read: if true;
-      allow write: if request.auth != null && (
-        role() == 'admin' || (role() == 'teacher' && request.resource.data.teacherId == request.auth.uid)
-      );
+      allow write: if true;   // frontend enforces "admin" in UI
     }
-
+    match /timetableEntries/{id} {
+      allow read: if true;
+      allow write: if true;   // frontend enforces "admin" in UI
+    }
     match /announcements/{id} {
       allow read: if true;
-      allow write: if request.auth != null && role() in ['admin','teacher'];
+      allow write: if true;   // frontend enforces "admin" in UI
     }
 
-    match /display_config/{doc} {
+    // CUSTOM AUTH USERS COLLECTION (no Firebase Auth)
+    // Your app uses /appUsers with local hashing + localStorage.
+    match /appUsers/{docId} {
       allow read: if true;
-      allow write: if request.auth != null && role() == 'admin';
+      allow write: if true;   // needed for Admin → Create/Delete user
+    }
+
+    // OPTIONAL/LEGACY: if you still have these in the DB, keep them readonly:
+    match /users/{userId} {
+      allow read: if true;    // screens may still read something here
+      allow write: if false;  // disable, because request.auth is null
+    }
+    match /invites/{inviteId} {
+      allow read: if true;    // by-id lookup is fine
+      allow write: if false;  // disable without Firebase Auth
+    }
+
+    // Catch-all: allow public reads; block writes elsewhere.
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }

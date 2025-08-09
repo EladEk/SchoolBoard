@@ -11,11 +11,15 @@
     "import:xlsx": "node tools/importFromXlsx.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "clsx": "^2.1.0",
     "dayjs": "^1.11.11",
-    "firebase": "^10.12.5",
+    "firebase": "^10.14.1",
+    "firebaseui": "^6.1.0",
+    "luxon": "^3.7.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-firebase-hooks": "^5.1.1",
     "react-router-dom": "^6.26.1",
     "xlsx": "^0.18.5"
   },
@@ -23,6 +27,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "firebase-admin": "^13.4.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.1"
   }
