@@ -31,7 +31,7 @@ export default function ClassesEditor() {
   useEffect(() => {
     if (myRole !== 'admin') return;
     const unsub = onSnapshot(query(collection(db, 'classes')), s => {
-      setClasses(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
+      setClasses(s.docs.map(d => ({ id: d.id, /* TODO filled */(d.data() as any) })));
     });
     return unsub;
   }, [myRole]);
@@ -78,9 +78,9 @@ export default function ClassesEditor() {
       <h2>Classes (Admin)</h2>
 
       <div style={{ display:'grid', gap:8, gridTemplateColumns:'1fr 1fr 1fr' }}>
-        <input placeholder="Class name" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/>
-        <input placeholder="Location / Room" value={form.location} onChange={e=>setForm({...form, location:e.target.value})}/>
-        <input placeholder="Teacher UID" value={form.teacherId} onChange={e=>setForm({...form, teacherId:e.target.value})}/>
+        <input placeholder="Class name" value={form.name} onChange={e=>setForm({/* TODO filled */form, name:e.target.value})}/>
+        <input placeholder="Location / Room" value={form.location} onChange={e=>setForm({/* TODO filled */form, location:e.target.value})}/>
+        <input placeholder="Teacher UID" value={form.teacherId} onChange={e=>setForm({/* TODO filled */form, teacherId:e.target.value})}/>
         <button style={{ gridColumn:'span 3' }} onClick={createClass}>Create Class</button>
       </div>
 

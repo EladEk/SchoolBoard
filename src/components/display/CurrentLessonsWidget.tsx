@@ -1,73 +1,90 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, onSnapshot, query, where, doc, getDoc } from 'firebase/firestore'
+import { useEffect, useMemo, useState } from 'react'
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { DateTime } from 'luxon'
 import { db } from '../../firebase/app'
-import { todayDow, nowTimeHHMM, between } from '../../utils/time'
 
-type Lesson = {
-  id: string
-  classId: string
-  subjectId: string
-  teacherId: string
-  dayOfWeek: number
-  start: string
-  end: string
-  overrideLocation?: string
+type ClassDoc = { id: string; name: string }
+type LessonDoc = { id: string; name: string; teacherId: string; classId: string }
+type Slot = { id: string; classId: string; lessonId: string; day: number; startMinutes: number; endMinutes: number }
+
+function toHHMM(mins: number) {
+  const h = String(Math.floor(mins / 60)).padStart(2, '0')
+  const m = String(mins % 60).padStart(2, '0')
+  return `${h}:${m}`
 }
 
-export default function CurrentLessonsWidget() {
-  const [lessons, setLessons] = useState<Lesson[]>([])
-  const [classes, setClasses] = useState<Record<string, any>>({})
-  const [subjects, setSubjects] = useState<Record<string, any>>({})
-  const [users, setUsers] = useState<Record<string, any>>({})
-  const [index, setIndex] = useState(0)
+export default function CurrentLessonsWidget({ classIds }: { classIds?: string[] }) {
+  const [classes, setClasses] = useState<ClassDoc[]>([])
+  const [lessons, setLessons] = useState<Record<string, LessonDoc>>({})
+  const [rows, setRows] = useState<Array<{ className: string; now?: { lesson: string; start: string; end: string } }>>([])
 
-  // subscribe to today's lessons
   useEffect(() => {
-    const qToday = query(collection(db, 'lessons'), where('dayOfWeek', '==', todayDow()))
-    const unsub = onSnapshot(qToday, async (snap) => {
-      const ls: Lesson[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
-      setLessons(ls)
-      // prefetch referenced docs (classes, subjects, teachers)
-      const classIds = [...new Set(ls.map(l => l.classId))]
-      const subjectIds = [...new Set(ls.map(l => l.subjectId))]
-      const teacherIds = [...new Set(ls.map(l => l.teacherId))]
-      const [cls, sub, tchs] = await Promise.all([
-        Promise.all(classIds.map(id => getDoc(doc(db, 'classes', id)))),
-        Promise.all(subjectIds.map(id => getDoc(doc(db, 'subjects', id)))),
-        Promise.all(teacherIds.map(id => getDoc(doc(db, 'users', id)))),
-      ])
-      const clsMap: any = {}; cls.forEach(s => s.exists() && (clsMap[s.id] = s.data()))
-      const subMap: any = {}; sub.forEach(s => s.exists() && (subMap[s.id] = s.data()))
-      const usrMap: any = {}; tchs.forEach(s => s.exists() && (usrMap[s.id] = s.data()))
-      setClasses(clsMap); setSubjects(subMap); setUsers(usrMap)
-    })
-    return () => unsub()
-  }, [])
+    (async () => {
+      // fetch classes (optionally filter by provided classIds)
+      const cSnap = await getDocs(collection(db, 'classes'))
+      const cs: ClassDoc[] = cSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
+      const filtered = classIds?.length ? cs.filter(c => classIds.includes(c.id)) : cs
+      setClasses(filtered)
 
-  // rotate between multiple active lessons
+      const lSnap = await getDocs(collection(db, 'lessons'))
+      const lmap: Record<string, LessonDoc> = {}
+      for (const d of lSnap.docs) lmap[d.id] = { id: d.id, ...(d.data() as any) }
+      setLessons(lmap)
+    })()
+  }, [JSON.stringify(classIds || [])])
+
   useEffect(() => {
-    const id = setInterval(() => setIndex(i => i + 1), 5000)
-    return () => clearInterval(id)
-  }, [])
+    (async () => {
+      if (!classes.length) return
+      const now = DateTime.now().setZone('Asia/Jerusalem')
+      const day = now.weekday % 7
+      const nowMinutes = now.hour * 60 + now.minute
 
-  const currentTime = nowTimeHHMM()
-  const active = useMemo(() => lessons.filter(l => between(currentTime, l.start, l.end)), [lessons, currentTime])
-  const showing = active.length ? active[index % active.length] : null
+      const out: Array<{ className: string; now?: { lesson: string; start: string; end: string } }> = []
 
-  if (!showing) return <div style={{padding: 16, fontSize: '2rem'}}>אין שיעור פעיל כרגע</div>
+      for (const c of classes) {
+        const qSlots = query(
+          collection(db, 'timetableEntries'),
+          where('classId', '==', c.id),
+          where('day', '==', day),
+          orderBy('startMinutes', 'asc'),
+          limit(30)
+        )
+        const sSnap = await getDocs(qSlots)
+        const slots: Slot[] = sSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
 
-  const cls = classes[showing.classId] || {}
-  const sub = subjects[showing.subjectId] || {}
-  const tch = users[showing.teacherId] || {}
+        let nowSlot: Slot | undefined
+        for (const s of slots) {
+          if (s.startMinutes <= nowMinutes && nowMinutes < s.endMinutes) { nowSlot = s; break }
+        }
 
-  const students: string[] = (cls.studentIds || []).slice(0, 60) // keep UI sane
+        out.push({
+          className: c.name,
+          now: nowSlot ? {
+            lesson: lessons[nowSlot.lessonId]?.name ?? nowSlot.lessonId,
+            start: toHHMM(nowSlot.startMinutes),
+            end: toHHMM(nowSlot.endMinutes)
+          } : undefined
+        })
+      }
+
+      out.sort((a, b) => a.className.localeCompare(b.className))
+      setRows(out)
+    })()
+  }, [classes, lessons])
 
   return (
-    <div style={{padding: 16}}>
-      <div style={{fontSize:'3rem', fontWeight:700}}>{sub.name || '—'}</div>
-      <div style={{fontSize:'1.5rem', opacity:.8}}>כיתה: {cls.name || '—'} · מורה: {tch.name || '—'} · כיתה: {showing.overrideLocation || cls.location || '—'}</div>
-      <div style={{marginTop:16, display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:8}}>
-        {students.map((s,i) => <div key={i} style={{background:'#1a2140', padding:'8px 12px', borderRadius:8}}>{s}</div>)}
+    <div>
+      <h3 style={{margin:'8px 0'}}>Now</h3>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:12}}>
+        {rows.map((r, i) => (
+          <div key={i} style={{background:'#111', padding:12, borderRadius:8}}>
+            <div style={{fontWeight:700, fontSize:18}}>{r.className}</div>
+            <div style={{marginTop:6, fontSize:16}}>
+              {r.now ? (<span><strong>{r.now.lesson}</strong> ({r.now.start}–{r.now.end})</span>) : '—'}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

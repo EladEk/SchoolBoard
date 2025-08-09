@@ -1,78 +1,40 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{database}/documents {
+  match /databases/{db}/documents {
+    function role() {
+      return get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role;
+    }
 
-    // === helpers (doc-based roles) ===
-    function isSignedIn() { return request.auth != null; }
-    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)); }
-    function roleOf(uid)   { return userDoc(uid).data.role; }
-    function isAdmin()     { return isSignedIn() && roleOf(request.auth.uid) == 'admin'; }
-    function isTeacher()   { return isSignedIn() && (
-                               roleOf(request.auth.uid) == 'teacher' ||
-                               roleOf(request.auth.uid) == 'admin'
-                             ); }
-
-    // === USERS ===
     match /users/{uid} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
-      // user can update own profile EXCEPT 'role'
-      allow update: if isSignedIn() && request.auth.uid == uid
-        && !('role' in request.resource.data.diff(resource.data).changedKeys());
+      allow read: if request.auth != null && (uid == request.auth.uid || role() == 'admin');
+      allow write: if request.auth != null && (uid == request.auth.uid || role() == 'admin');
     }
 
-    // === CLASSES ===
-    match /classes/{classId} {
-      allow read: if true;
-
-      // Admins: full control on classes
-      allow create, update, delete: if isAdmin();
-
-      // Teachers: may ONLY modify studentIds on classes they own
-      allow update: if isTeacher()
-        && resource.data.teacherId == request.auth.uid
-        // Prevent changes to restricted fields
-        && request.resource.data.name == resource.data.name
-        && request.resource.data.location == resource.data.location
-        && request.resource.data.teacherId == resource.data.teacherId;
-        // studentIds is allowed to change
+    match /classes/{id} {
+      allow read: if true; // allow kiosk to read
+      allow write: if request.auth != null && role() == 'admin';
     }
 
-    // === SUBJECTS ===
     match /subjects/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if request.auth != null && role() == 'admin';
     }
 
-    // === LESSONS === (Teachers: only their own)
     match /lessons/{id} {
       allow read: if true;
-
-      // Admin full control
-      allow create, update, delete: if isAdmin();
-
-      // Teachers can only manage lessons they teach, and cannot change teacherId
-      allow create: if isTeacher()
-        && request.resource.data.teacherId == request.auth.uid;
-
-      allow update: if isTeacher()
-        && resource.data.teacherId == request.auth.uid
-        && !('teacherId' in request.resource.data.diff(resource.data).changedKeys());
-
-      allow delete: if isTeacher()
-        && resource.data.teacherId == request.auth.uid;
+      allow write: if request.auth != null && (
+        role() == 'admin' || (role() == 'teacher' && request.resource.data.teacherId == request.auth.uid)
+      );
     }
 
-    // === ANNOUNCEMENTS === (teachers & admins may write)
     match /announcements/{id} {
       allow read: if true;
-      allow write: if isTeacher(); // teachers & admins
+      allow write: if request.auth != null && role() in ['admin','teacher'];
     }
 
-    // === DISPLAY CONFIG ===
-    match /display_config/{id} {
+    match /display_config/{doc} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if request.auth != null && role() == 'admin';
     }
   }
 }

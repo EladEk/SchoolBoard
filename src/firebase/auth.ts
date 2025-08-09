@@ -18,7 +18,7 @@ export function onUser(callback: (u: User | null) => void) {
 export interface AppUser {
   uid: string
   name: string
-  role: 'admin' | 'teacher' | 'student'
+  role: 'admin' | 'teacher' | 'student'|'kiosk'
 }
 
 export async function fetchAppUser(uid: string): Promise<AppUser | null> {

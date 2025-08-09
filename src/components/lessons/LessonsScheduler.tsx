@@ -1,228 +1,142 @@
-import { useEffect, useMemo, useState } from 'react';
-import { auth, db } from '../../firebase/app';
-import {
-  addDoc, collection, deleteDoc, doc, onSnapshot, query, where, getDocs
-} from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useEffect, useMemo, useState } from 'react'
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, where } from 'firebase/firestore'
+import { db } from '../../firebase/app'
 
-// ==== CONFIG ====
-const DAYS = [
-  { dow: 0, label: 'Sun' },
-  { dow: 1, label: 'Mon' },
-  { dow: 2, label: 'Tue' },
-  { dow: 3, label: 'Wed' },
-  { dow: 4, label: 'Thu' },
-  { dow: 5, label: 'Fri' }
-  // { dow: 6, label: 'Sat' }, // add if needed
-];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-const SLOTS: [string, string][] = [
-  ['08:30', '09:15'],
-  ['09:15', '10:00'],
-  ['10:30', '11:15'],
-  ['11:15', '12:00'],
-  ['12:15', '13:00'],
-];
-
-type Role = 'admin'|'teacher'|'student'|'kiosk';
-type ClassDoc = { id:string; name:string; teacherId:string; location:string; studentIds:string[] };
-type LessonDoc = {
-  id: string;
-  classId: string;
-  subjectId?: string | null;
-  name?: string | null;
-  teacherId: string;
-  dayOfWeek: number; // 0..6
-  start: string;     // "HH:MM"
-  end: string;       // "HH:MM"
-  overrideLocation?: string | null;
-};
+function toMinutes(hm: string) {
+  const [h,m] = hm.split(':').map(Number)
+  return h*60 + m
+}
 
 export default function LessonsScheduler() {
-  const [uid, setUid] = useState<string|null>(null);
-  const [role, setRole] = useState<Role>('student');
-  const [classes, setClasses] = useState<ClassDoc[]>([]);
-  const [lessons, setLessons] = useState<LessonDoc[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState('');
-  const [lessonName, setLessonName] = useState('');
-  const [subjectId, setSubjectId] = useState('');
+  const [classes, setClasses] = useState<any[]>([])
+  const [lessons, setLessons] = useState<any[]>([])
+  const [selectedClass, setSelectedClass] = useState<string>('')
+  const [timeSlots, setTimeSlots] = useState<string[]>(['08:00','08:45','09:30','10:15','11:00','11:45','12:30','13:15'])
+  const [entries, setEntries] = useState<any[]>([])
 
-  // who am I + role
   useEffect(() => {
-    const off = onAuthStateChanged(auth, async (u) => {
-      setUid(u?.uid ?? null);
-      if (!u) return;
-      const { getDoc, doc: d } = await import('firebase/firestore');
-      const snap = await getDoc(d(db, 'users', u.uid));
-      setRole((snap.data()?.role ?? 'student') as Role);
-    });
-    return off;
-  }, []);
+    (async () => {
+      const clsSnap = await getDocs(collection(db, 'classes'))
+      setClasses(clsSnap.docs.map(d => ({ id:d.id, ...(d.data() as any) })))
 
-  // load classes (read-only for teachers)
+      const lSnap = await getDocs(collection(db, 'lessons'))
+      setLessons(lSnap.docs.map(d => ({ id:d.id, ...(d.data() as any) })))
+    })()
+  }, [])
+
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'classes'), (s) => {
-      const list = s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ClassDoc[];
-      setClasses(list);
-      if (!selectedClassId && list.length) setSelectedClassId(list[0].id);
-    });
-    return unsub;
-  }, []);
+    (async () => {
+      if (!selectedClass) return
+      const q1 = query(
+        collection(db, 'timetableEntries'),
+        where('classId', '==', selectedClass),
+        orderBy('day', 'asc'),
+        orderBy('startMinutes', 'asc')
+      )
+      const snap = await getDocs(q1)
+      setEntries(snap.docs.map(d => ({ id:d.id, ...(d.data() as any) })))
+    })()
+  }, [selectedClass])
 
-  // load lessons for selected class
-  useEffect(() => {
-    if (!selectedClassId) return;
-    const q = query(collection(db, 'lessons'), where('classId', '==', selectedClassId));
-    return onSnapshot(q, (s) => {
-      setLessons(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as LessonDoc[]);
-    });
-  }, [selectedClassId]);
+  const lessonsForClass = useMemo(() => lessons.filter(l => l.classId === selectedClass), [lessons, selectedClass])
 
-  const occupied = useMemo(() => {
-    const map = new Map<string, LessonDoc>();
-    for (const l of lessons) {
-      map.set(`${l.dayOfWeek}|${l.start}|${l.end}`, l);
-    }
-    return map;
-  }, [lessons]);
+  async function toggleCell(dayIdx: number, slotIdx: number, lessonId: string) {
+    if (!selectedClass || !lessonId) return
+    const start = timeSlots[slotIdx]
+    const end = timeSlots[slotIdx+1]
+    if (!end) return
 
-  const canCreate = useMemo(() => {
-    if (!uid) return false;
-    return role === 'admin' || role === 'teacher';
-  }, [role, uid]);
+    const startMinutes = toMinutes(start)
+    const endMinutes = toMinutes(end)
 
-  async function toggleCell(dayOfWeek: number, start: string, end: string) {
-    if (!uid || !selectedClassId) return;
-
-    const key = `${dayOfWeek}|${start}|${end}`;
-    const existing = occupied.get(key);
-
+    const existing = entries.find(e => e.day===dayIdx && e.classId===selectedClass && e.startMinutes===startMinutes && e.endMinutes===endMinutes)
     if (existing) {
-      const ok = confirm(`Remove lesson "${existing.name ?? '-'}" at ${start}-${end}?`);
-      if (!ok) return;
-      await deleteDoc(doc(db, 'lessons', existing.id));
-      return;
+      await deleteDoc(doc(db, 'timetableEntries', existing.id))
+      setEntries(prev => prev.filter(x => x.id !== existing.id))
+    } else {
+      const ref = await addDoc(collection(db, 'timetableEntries'), {
+        classId: selectedClass,
+        lessonId,
+        day: dayIdx,
+        startMinutes,
+        endMinutes,
+        createdBy: 'EDITOR'
+      })
+      setEntries(prev => prev.concat([{ id: ref.id, classId: selectedClass, lessonId, day: dayIdx, startMinutes, endMinutes }]))
     }
-
-    if (!canCreate) { alert('Not allowed.'); return; }
-    if (!lessonName.trim() && !subjectId.trim()) {
-      const ok = confirm('No Lesson name or subject selected. Create anyway?');
-      if (!ok) return;
-    }
-
-    // collision check
-    const q = query(
-      collection(db, 'lessons'),
-      where('classId', '==', selectedClassId),
-      where('dayOfWeek', '==', dayOfWeek),
-      where('start', '==', start),
-      where('end', '==', end)
-    );
-    const snap = await getDocs(q);
-    if (!snap.empty) { alert('There is already a lesson at this time.'); return; }
-
-    const teacherId = role === 'admin' ? await pickTeacherIdForAdmin(uid, selectedClassId) : uid;
-    if (!teacherId) return;
-
-    await addDoc(collection(db, 'lessons'), {
-      classId: selectedClassId,
-      subjectId: subjectId || null,
-      name: lessonName || null,
-      teacherId,
-      dayOfWeek,
-      start,
-      end,
-      overrideLocation: null
-    });
-  }
-
-  async function pickTeacherIdForAdmin(fallbackUid: string, classId: string) {
-    if (role !== 'admin') return fallbackUid;
-    const c = classes.find(x => x.id === classId);
-    if (!c) return fallbackUid;
-    const choice = prompt(`Teacher UID for this lesson? (Enter for class owner)\nClass owner: ${c.teacherId}\nSelf: ${fallbackUid}`, c.teacherId || '');
-    return (choice && choice.trim()) || c.teacherId || fallbackUid;
   }
 
   return (
-    <div style={{ display:'grid', gap:16 }}>
+    <div style={{padding:16}}>
       <h2>Lessons Scheduler</h2>
 
-      <div style={{ display:'grid', gap:8, gridTemplateColumns:'1fr 1fr 1fr' }}>
-        <div>
-          <label>Lesson name</label>
-          <input
-            value={lessonName}
-            onChange={e=>setLessonName(e.target.value)}
-            placeholder="e.g. Math Group A"
-          />
-        </div>
+      <div style={{display:'flex', gap:12, alignItems:'center', marginBottom:16}}>
+        <label>Class:</label>
+        <select value={selectedClass} onChange={e=>setSelectedClass(e.target.value)}>
+          <option value="">Select</option>
+          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
 
-        <div>
-          <label>Class (where it takes part)</label>
-          <select value={selectedClassId} onChange={e=>setSelectedClassId(e.target.value)}>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.name} — {c.location}</option>)}
-          </select>
-        </div>
+        <label>Slots:</label>
+        <select onChange={e=>{
+          const v = e.target.value
+          if (v === '40m') setTimeSlots(['08:00','08:40','09:20','10:00','10:40','11:20','12:00','12:40'])
+          if (v === '45m') setTimeSlots(['08:00','08:45','09:30','10:15','11:00','11:45','12:30','13:15'])
+        }}>
+          <option value="custom">Preset</option>
+          <option value="40m">40m</option>
+          <option value="45m">45m</option>
+        </select>
 
-        <div>
-          <label>Subject ID (optional)</label>
-          <input
-            value={subjectId}
-            onChange={e=>setSubjectId(e.target.value)}
-            placeholder="subjects/{id}"
-          />
-        </div>
+        <label>Lesson:</label>
+        <select id="lessonPick">
+          <option value="">Pick lesson…</option>
+          {lessonsForClass.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+        </select>
       </div>
 
-      <div style={{ overflowX:'auto' }}>
-        <table style={{ borderCollapse:'collapse', minWidth: 900 }}>
-          <thead>
-            <tr>
-              <th style={th}>Time</th>
-              {DAYS.map(d => (
-                <th key={d.dow} style={th}>{d.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {SLOTS.map(([start, end]) => (
-              <tr key={`${start}-${end}`}>
-                <td style={timeCell}>{start}–{end}</td>
-                {DAYS.map(d => {
-                  const key = `${d.dow}|${start}|${end}`;
-                  const existing = occupied.get(key);
-                  const filled = Boolean(existing);
-                  const label = existing?.name || '—';
-                  return (
-                    <td
-                      key={key}
-                      onClick={() => toggleCell(d.dow, start, end)}
-                      style={{
-                        ...cell,
-                        background: filled ? 'rgba(0,150,255,0.15)' : 'transparent',
-                        cursor: (role === 'admin' || role === 'teacher') ? 'pointer' : 'default'
-                      }}
-                      title={filled ? `Lesson: ${label}` : 'Empty'}
-                    >
-                      {filled ? (label || 'Lesson') : ''}
-                    </td>
-                  );
-                })}
+      {selectedClass && (
+        <div style={{overflowX:'auto'}}>
+          <table style={{borderCollapse:'collapse', minWidth:900}}>
+            <thead>
+              <tr>
+                <th style={{borderBottom:'1px solid #ccc', padding:8}}>Day / Time</th>
+                {timeSlots.slice(0,-1).map((t, i) => (
+                  <th key={i} style={{borderBottom:'1px solid #ccc', padding:8}}>{t}–{timeSlots[i+1]}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <small>
-        Tip: Click a filled cell to <b>remove</b> that lesson. Admins can choose any teacher; teachers schedule for themselves.
-      </small>
+            </thead>
+            <tbody>
+              {DAYS.map((d, dayIdx) => (
+                <tr key={d}>
+                  <td style={{borderRight:'1px solid #ccc', padding:8, fontWeight:600}}>{d}</td>
+                  {timeSlots.slice(0,-1).map((_, slotIdx) => {
+                    const sm = toMinutes(timeSlots[slotIdx])
+                    const em = toMinutes(timeSlots[slotIdx+1])
+                    const cell = entries.find(e => e.day===dayIdx && e.startMinutes===sm && e.endMinutes===em && e.classId===selectedClass)
+                    const lesson = cell ? lessons.find(l => l.id === cell.lessonId) : null
+                    return (
+                      <td key={slotIdx}
+                          onClick={()=>{
+                            const el = document.getElementById('lessonPick') as HTMLSelectElement | null
+                            const lessonId = el?.value || ''
+                            if (!lessonId) { alert('Pick a lesson first'); return }
+                            toggleCell(dayIdx, slotIdx, lessonId)
+                          }}
+                          title={lesson ? lesson.name : 'Empty'}
+                          style={{border:'1px solid #e6e6e6', padding:10, cursor:'pointer', background: lesson ? '#e6f7ff' : 'transparent'}}>
+                        {lesson ? lesson.name : ''}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
-  );
+  )
 }
-
-// --- styles ---
-const th: React.CSSProperties = { borderBottom:'1px solid #333', padding:'8px 10px', textAlign:'center' };
-const cell: React.CSSProperties = { border:'1px solid #333', minWidth:120, height:44, textAlign:'center' };
-const timeCell: React.CSSProperties = { ...cell, fontWeight:600, background:'rgba(255,255,255,0.04)' };

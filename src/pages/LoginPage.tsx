@@ -1,35 +1,38 @@
-import React, { useState } from 'react'
-import { login } from '../firebase/auth'
+import { useState } from 'react'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '../firebase/app'
 import { useNavigate } from 'react-router-dom'
 
 export default function LoginPage() {
+  const nav = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [err, setErr] = useState<string | null>(null)
-  const nav = useNavigate()
+  const [err, setErr] = useState<string|undefined>()
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setErr(null)
+    setErr(undefined)
     try {
-      const { user } = await login(email, password)
-      // naive redirect choice; real app should read role
-      nav('/student')
-    } catch (e: any) {
-      setErr(e.message)
+      await signInWithEmailAndPassword(auth, email, password)
+      nav('/')
+    } catch (e:any) {
+      setErr(e?.message || 'Login failed')
     }
   }
 
   return (
-    <div className="container">
-      <h1>כניסה</h1>
-      <form onSubmit={onSubmit} style={{display:'grid', gap:8, maxWidth:320}}>
-        <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-        <input placeholder="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
-        <button type="submit">Login</button>
-        {err && <div style={{color:'crimson'}}>{err}</div>}
+    <div style={{minHeight:'100vh', display:'grid', placeItems:'center', background:'#0b0b0b', color:'#fff'}}>
+      <form onSubmit={onSubmit} style={{background:'#121212', padding:24, borderRadius:12, width:360}}>
+        <h2 style={{marginTop:0}}>SchoolBoard Login</h2>
+        <div style={{display:'grid', gap:8}}>
+          <label>Email</label>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required style={{padding:8, borderRadius:6}}/>
+          <label>Password</label>
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required style={{padding:8, borderRadius:6}}/>
+          {err && <div style={{color:'salmon'}}>{err}</div>}
+          <button type="submit" style={{marginTop:12}}>Sign In</button>
+        </div>
       </form>
-      <p>תצוגת מסדרון: <a href="/display">/display</a></p>
     </div>
   )
 }
