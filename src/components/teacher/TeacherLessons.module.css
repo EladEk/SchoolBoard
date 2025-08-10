@@ -21,20 +21,12 @@
   border-radius: var(--radius-lg);
   padding: 12px;
 }
-.titleRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.titleDot {
-  inline-size: 8px; block-size: 8px; border-radius: 999px;
-  background: var(--tl-primary);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.25);
-}
+.titleRow { display: flex; align-items: center; gap: 8px; }
+.titleDot { inline-size: 8px; block-size: 8px; border-radius: 999px; background: var(--tl-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.25); }
 .titleText { font-weight: 600; font-size: 18px; }
 .subtitle { color: var(--tl-muted); font-size: 13px; margin-top: 6px; }
 
-/* panel + inputs/buttons */
+/* panels / inputs / buttons */
 .panel {
   background: var(--tl-surface);
   border: 1px solid var(--tl-border);
@@ -50,10 +42,8 @@
   outline: none;
   transition: border-color .2s ease, box-shadow .2s ease;
 }
-.input:focus, .select:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.25);
-}
+.input:focus, .select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.25); }
+
 .btn {
   background: var(--tl-surface-2);
   border: 1px solid var(--tl-border);
@@ -71,10 +61,7 @@
 .btnDanger:hover { background: #991b1b; }
 .btnSm { padding: 6px 10px; font-size: 12px; }
 
-.field { display: grid; gap: 6px; }
-.label { color: var(--tl-muted); font-size: 13px; }
-
-/* table */
+/* tables */
 .tableWrap {
   background: var(--tl-surface);
   border: 1px solid var(--tl-border);
@@ -90,10 +77,81 @@
   padding: 10px 12px;
   position: sticky; inset-block-start: 0; z-index: 1;
 }
-.table tbody td {
-  padding: 12px; border-top: 1px solid var(--tl-border);
-}
+.table tbody td { padding: 12px; border-top: 1px solid var(--tl-border); }
+.muted { color: var(--tl-muted); }
 
+.rosterChips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: var(--tl-surface-2);
+  border: 1px solid var(--tl-border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--tl-text);
+}
+.moreChip { composes: chip; opacity: .75; }
+
+/* NEW: dual-pane roster manager */
+.managerHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px;
+}
+.managerTitle { display: flex; align-items: center; gap: 8px; }
+.managerDot { inline-size: 8px; block-size: 8px; border-radius: 999px; background: var(--tl-primary); }
+.managerText { font-weight: 600; }
+
+.managerControls { display: flex; gap: 8px; }
+
+.dualGrid {
+  display: grid; gap: 14px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .dualGrid { grid-template-columns: 1fr 1fr; }
+}
+.dualCol {
+  background: #121316;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+.colHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  background: #181a1f;
+  border-bottom: 1px solid var(--tl-border);
+}
+.colTitle { font-weight: 600; }
+.countBadge {
+  background: var(--tl-surface-2);
+  border: 1px solid var(--tl-border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--tl-text);
+}
+.badgePrimary { background: rgba(37,99,235,.15); border-color: #1f4fd4; }
+
+.tableScroller { overflow: auto; max-height: 480px; }
+
+.actionsCell { text-align: end; }
+
+.emptyCell { color: var(--tl-muted); padding: 12px; }
+
+/* sortable headers inside roster tables */
+.sortTh { padding: 10px 12px; }
+.sortBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 0; color: var(--tl-muted); cursor: pointer;
+  padding: 0;
+}
+.sortBtn:hover { color: var(--tl-text); }
+.sortIcon { opacity: .7; }
+
+/* old roster list (kept for compatibility in case) */
 .rosterList { display: grid; gap: 6px; }
 .rosterItem {
   display: flex; align-items: center; justify-content: space-between;
@@ -102,4 +160,6 @@
   border-radius: 10px;
   padding: 6px 8px;
 }
-.muted { color: var(--tl-muted); }
+
+/* footer */
+.managerFooter { display: flex; justify-content: flex-end; padding-top: 10px; }

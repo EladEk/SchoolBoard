@@ -25,5 +25,7 @@
   "table": {
     "lesson": "שיעור",
     "roster": "רשימת תלמידים"
-  }
+  },
+  "manageRoster" : "ניהול תלמידים",
+  "managing" : "בניהול"
 }
