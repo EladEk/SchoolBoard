@@ -10,6 +10,7 @@ import styles from './UsersAdmin.module.css';
 import { useTranslation } from 'react-i18next';
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
+
 type AppUser = {
   id: string;
   firstName?: string;
@@ -17,6 +18,9 @@ type AppUser = {
   username: string;
   usernameLower?: string;
   role: Role;
+  // NEW FIELDS
+  birthday?: string;      // ISO "YYYY-MM-DD" (string)
+  classGrade?: string;    // one of: "א","ב","ג","ד","ה","ו","ז","ח","ט","י","יא","יב"
   passwordHash?: string;
   salt?: string;
   createdAt?: any;
@@ -36,7 +40,41 @@ type EditState =
       username: string;
       role: Role;
       newPassword: string;
+      // NEW
+      birthday: string;
+      classGrade: string; // Hebrew value stored in DB
     };
+
+// Hebrew grade values (storage + UI)
+const CLASS_GRADE_VALUES = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","יא","יב"] as const;
+type GradeHeb = typeof CLASS_GRADE_VALUES[number];
+
+function isHebGrade(v: string): v is GradeHeb {
+  return CLASS_GRADE_VALUES.includes(v as GradeHeb);
+}
+
+// Normalize any input (numeric "1".."12" or "כיתה X" or bare Hebrew) -> Hebrew letter(s)
+function toHebGrade(input: any): string {
+  const raw = String(input ?? '').trim();
+  if (!raw) return '';
+  // If already exact Hebrew value
+  if (isHebGrade(raw)) return raw;
+  // Strip optional "כיתה " prefix
+  const noPrefix = raw.replace(/^כיתה\s*/,'');
+  if (isHebGrade(noPrefix)) return noPrefix;
+
+  // Numeric -> Hebrew
+  const num = Number(raw);
+  if (!Number.isNaN(num) && num >= 1 && num <= 12) {
+    return CLASS_GRADE_VALUES[num - 1];
+  }
+  // Map common Hebrew words like "י\"א" variants (normalize punctuation/spaces)
+  const compact = noPrefix.replace(/[^\u0590-\u05FF]/g, ''); // keep Hebrew letters only
+  if (isHebGrade(compact)) return compact;
+
+  // Fallback: unknown -> empty
+  return '';
+}
 
 export default function UsersAdmin() {
   const { t } = useTranslation();
@@ -45,6 +83,9 @@ export default function UsersAdmin() {
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', username: '', password: '', role: 'teacher' as Role,
+    // NEW in create
+    birthday: '',
+    classGrade: 'א', // store Hebrew directly
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -81,6 +122,8 @@ export default function UsersAdmin() {
     const lastName = form.lastName.trim();
     const username = form.username.trim();
     const usernameLower = username.toLowerCase();
+    const birthday = form.birthday.trim(); // optional
+    const classGradeHeb = form.role === 'student' ? toHebGrade(form.classGrade) : '';
 
     try {
       setSubmitting(true);
@@ -95,12 +138,19 @@ export default function UsersAdmin() {
       const salt = bcrypt.genSaltSync(10);
       const passwordHash = bcrypt.hashSync(form.password, salt);
 
-      await addDoc(collection(db, 'appUsers'), {
+      const payload: any = {
         firstName, lastName, username, usernameLower, role: form.role,
         salt, passwordHash, createdAt: serverTimestamp(),
-      });
+      };
+      if (birthday) payload.birthday = birthday;
+      if (form.role === 'student' && classGradeHeb) payload.classGrade = classGradeHeb; // store Hebrew
 
-      setForm({ firstName: '', lastName: '', username: '', password: '', role: 'teacher' });
+      await addDoc(collection(db, 'appUsers'), payload);
+
+      setForm({
+        firstName: '', lastName: '', username: '', password: '', role: 'teacher',
+        birthday: '', classGrade: 'א',
+      });
       showToast('success', t('users:toasts.created', { username }));
     } catch (err: any) {
       showToast('error', t('users:toasts.createFail', { msg: err?.message || 'unknown' }));
@@ -114,6 +164,8 @@ export default function UsersAdmin() {
       open: true, id: u.id,
       firstName: u.firstName || '', lastName: u.lastName || '',
       username: u.username || '', role: u.role, newPassword: '',
+      birthday: u.birthday || '',
+      classGrade: toHebGrade(u.classGrade) || 'א', // keep Hebrew in UI
     });
   }
   function closeEdit() { setEdit({ open: false }); }
@@ -126,9 +178,11 @@ export default function UsersAdmin() {
     const lastName = edit.lastName.trim();
     const username = edit.username.trim();
     const usernameLower = username.toLowerCase();
+    const birthday = (edit.birthday || '').trim();
+    const classGradeHeb = edit.role === 'student' ? toHebGrade(edit.classGrade) : '';
 
-    if (!username) return showToast('error', t('users:toasts.createFail', { msg: t('users:username') }));
-    if (!firstName && !lastName) return showToast('error', t('users:toasts.createFail', { msg: t('users:firstName') + '/' + t('users:lastName') }));
+    if (!username) return showToast('error', t('users:toasts.createFail', { msg: t('users:username', 'Username') }));
+    if (!firstName && !lastName) return showToast('error', t('users:toasts.createFail', { msg: t('users:firstName','First name') + '/' + t('users:lastName','Last name') }));
 
     try {
       setSavingEdit(true);
@@ -143,6 +197,8 @@ export default function UsersAdmin() {
 
       const payload: any = {
         firstName, lastName, username, usernameLower, role: edit.role,
+        birthday: birthday || '',
+        classGrade: edit.role === 'student' ? (classGradeHeb || '') : '',
       };
       if (edit.newPassword?.trim()) {
         const salt = bcrypt.genSaltSync(10);
@@ -150,6 +206,7 @@ export default function UsersAdmin() {
         payload.salt = salt;
         payload.passwordHash = passwordHash;
       }
+
       await updateDoc(doc(db, 'appUsers', id), payload);
       showToast('success', t('users:toasts.updated', { username }));
       closeEdit();
@@ -166,28 +223,44 @@ export default function UsersAdmin() {
   }
 
   function downloadTemplate() {
+    // Include birthday + classGrade (stored/displayed as Hebrew letters)
     const rows = [
-      { username: 'teacher.alex', firstName: 'Alex', lastName: 'Levi', role: 'teacher', password: 'Secret123' },
-      { username: 'student.neta', firstName: 'Neta', lastName: 'Cohen', role: 'student', password: 'Temp4567' },
+      { username: 'teacher.alex', firstName: 'Alex', lastName: 'Levi', role: 'teacher', password: 'Secret123', birthday: '1985-03-12', classGrade: '' },
+      { username: 'student.neta', firstName: 'Neta',  lastName: 'Cohen', role: 'student', password: 'Temp4567',  birthday: '2011-06-05', classGrade: 'ו' },
     ];
-    const ws = XLSX.utils.json_to_sheet(rows, { header: ['username','firstName','lastName','role','password'] });
+    const header = ['username','firstName','lastName','role','password','birthday','classGrade'];
+    const ws = XLSX.utils.json_to_sheet(rows, { header });
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'UsersTemplate');
-    XLSX.writeFile(wb, 'users-template.xlsx'); showToast('info', t('users:toasts.templateDownloaded'));
+    XLSX.writeFile(wb, 'users-template.xlsx'); showToast('info', t('users:toasts.templateDownloaded', 'Template downloaded'));
   }
+
   function exportUsers() {
+    // Export what we store: Hebrew classGrade
     const rows = users.map(u => ({
-      username: u.username || '', firstName: u.firstName || '', lastName: u.lastName || '', role: u.role || 'student', password: ''
+      username: u.username || '',
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      role: u.role || 'student',
+      password: '',
+      birthday: u.birthday || '',
+      classGrade: toHebGrade(u.classGrade) || '',
     }));
-    const ws = XLSX.utils.json_to_sheet(rows, { header: ['username','firstName','lastName','role','password'] });
+    const header = ['username','firstName','lastName','role','password','birthday','classGrade'];
+    const ws = XLSX.utils.json_to_sheet(rows, { header });
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Users');
-    XLSX.writeFile(wb, 'users-export.xlsx'); showToast('success', t('users:toasts.exported'));
+    XLSX.writeFile(wb, 'users-export.xlsx'); showToast('success', t('users:toasts.exported', 'Exported'));
   }
+
   function openFilePicker() { fileInputRef.current?.click(); }
+
+  function coerceDateString(v: any): string {
+    return String(v || '').trim();
+  }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; e.target.value=''; if (!file) return;
     try {
-      setBusyImport(true); showToast('info', t('users:toasts.importing'));
+      setBusyImport(true); showToast('info', t('users:toasts.importing', 'Importing...'));
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -209,13 +282,22 @@ export default function UsersAdmin() {
         const lastName = String(r['lastName'] ?? r['LastName'] ?? '').trim();
         const role = String(r['role'] ?? r['Role'] ?? 'student').trim() as Role;
         const password = String(r['password'] ?? r['Password'] ?? '').trim();
+        const birthday = coerceDateString(r['birthday'] ?? r['Birthday'] ?? '');
+        // Accept numeric or Hebrew/label, store Hebrew
+        const classGradeHeb = role === 'student'
+          ? toHebGrade(r['classGrade'] ?? r['ClassGrade'] ?? '')
+          : '';
 
         if (!username){ skipped++; reasons.push(`Row ${i+2}: missing username`); continue; }
         const key = username.toLowerCase();
         const existing = existingMap.get(key);
 
         if (existing){
-          const payload: any = { firstName, lastName, username, usernameLower:key, role };
+          const payload: any = {
+            firstName, lastName, username, usernameLower:key, role,
+            birthday: birthday || '',
+            classGrade: role==='student' ? (classGradeHeb || '') : '',
+          };
           if (password){
             const salt = bcrypt.genSaltSync(10);
             const passwordHash = bcrypt.hashSync(password, salt);
@@ -227,9 +309,12 @@ export default function UsersAdmin() {
           if (!password){ skipped++; reasons.push(`Row ${i+2}: new user "${username}" missing password`); continue; }
           const salt = bcrypt.genSaltSync(10);
           const passwordHash = bcrypt.hashSync(password, salt);
-          await addDoc(collection(db, 'appUsers'), {
+          const payload: any = {
             firstName, lastName, username, usernameLower:key, role, salt, passwordHash, createdAt: serverTimestamp(),
-          });
+            birthday: birthday || '',
+            classGrade: role==='student' ? (classGradeHeb || '') : '',
+          };
+          await addDoc(collection(db, 'appUsers'), payload);
           created++;
         }
       }
@@ -253,13 +338,13 @@ export default function UsersAdmin() {
       )}
 
       <div className={styles.actionBar}>
-        <h2 className="text-xl font-semibold text-white">{t('users:manage')}</h2>
+        <h2 className="text-xl font-semibold text-white">{t('users:manage', 'Manage Users')}</h2>
         <div className="flex gap-2">
-          <button onClick={downloadTemplate} className={`${styles.btn}`}>{t('common:downloadTemplate')}</button>
-          <button onClick={exportUsers} className={`${styles.btn}`}>{t('common:export')}</button>
+          <button onClick={downloadTemplate} className={`${styles.btn}`}>{t('common:downloadTemplate','Download template')}</button>
+          <button onClick={exportUsers} className={`${styles.btn}`}>{t('common:export','Export')}</button>
           <button onClick={openFilePicker} disabled={busyImport}
             className={`${styles.btn} ${styles.btnPrimary}`} >
-            {busyImport ? t('users:creating') : t('common:import')}
+            {busyImport ? t('users:creating','Working...') : t('common:import','Import')}
           </button>
           <input
             ref={fileInputRef}
@@ -272,21 +357,29 @@ export default function UsersAdmin() {
       </div>
 
       {/* Create User */}
-      <form onSubmit={createUser} className={`${styles.panel} grid grid-cols-1 md:grid-cols-6 gap-3 p-4`}>
-        <input className={styles.input} placeholder={t('users:firstName')!}
+      <form onSubmit={createUser} className={`${styles.panel} grid grid-cols-1 md:grid-cols-8 gap-3 p-4`}>
+        <input className={styles.input} placeholder={t('users:firstName','First name')!}
           value={form.firstName} onChange={(e)=>setForm(f=>({...f,firstName:e.target.value}))}/>
-        <input className={styles.input} placeholder={t('users:lastName')!}
+        <input className={styles.input} placeholder={t('users:lastName','Last name')!}
           value={form.lastName} onChange={(e)=>setForm(f=>({...f,lastName:e.target.value}))}/>
-        <input className={styles.input} placeholder={t('users:username')!} autoComplete="username"
+        <input className={styles.input} placeholder={t('users:username','Username')!} autoComplete="username"
           value={form.username} onChange={(e)=>setForm(f=>({...f,username:e.target.value}))}/>
-        <input className={styles.input} type="password" placeholder={t('users:password')!} autoComplete="new-password"
+        <input className={styles.input} type="password" placeholder={t('users:password','Password')!} autoComplete="new-password"
           value={form.password} onChange={(e)=>setForm(f=>({...f,password:e.target.value}))}/>
+        {/* NEW: birthday */}
+        <input className={styles.input} type="date" placeholder={t('users:birthday','Birthday')!}
+          value={form.birthday} onChange={(e)=>setForm(f=>({...f,birthday:e.target.value}))}/>
         <select className={styles.select} value={form.role}
           onChange={(e)=>setForm(f=>({...f,role:e.target.value as Role}))}>
           {['admin','teacher','student','kiosk'].map(r=><option key={r} value={r}>{r}</option>)}
         </select>
+        {/* NEW: classGrade (students only; Hebrew values) */}
+        <select className={styles.select} value={form.classGrade}
+          onChange={(e)=>setForm(f=>({...f,classGrade:e.target.value}))} disabled={form.role!=='student'}>
+          {CLASS_GRADE_VALUES.map(val => <option key={val} value={val}>{`כיתה ${val}`}</option>)}
+        </select>
         <button type="submit" disabled={!canCreate||submitting}
-          className={`${styles.btn} ${styles.btnPrimary}`}>{submitting?t('users:creating'):t('users:create')}</button>
+          className={`${styles.btn} ${styles.btnPrimary}`}>{submitting?t('users:creating','Creating...'):t('users:create','Create')}</button>
       </form>
 
       {/* Table */}
@@ -294,11 +387,14 @@ export default function UsersAdmin() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>{t('users:table.username')}</th>
-              <th>{t('users:table.first')}</th>
-              <th>{t('users:table.last')}</th>
-              <th>{t('users:table.role')}</th>
-              <th className="w-48">{t('common:actions')}</th>
+              <th>{t('users:table.username','Username')}</th>
+              <th>{t('users:table.first','First')}</th>
+              <th>{t('users:table.last','Last')}</th>
+              <th>{t('users:table.role','Role')}</th>
+              {/* NEW columns */}
+              <th>{t('users:birthday','Birthday')}</th>
+              <th>{t('users:classGrade','Class Grade')}</th>
+              <th className="w-56">{t('common:actions','Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -308,16 +404,18 @@ export default function UsersAdmin() {
                 <td>{u.firstName||''}</td>
                 <td>{u.lastName||''}</td>
                 <td>{u.role}</td>
+                <td>{u.birthday||''}</td>
+                <td>{u.role==='student' ? (u.classGrade ? `כיתה ${toHebGrade(u.classGrade)}` : '') : ''}</td>
                 <td>
                   <div className="flex gap-2">
-                    <button onClick={()=>openEdit(u)} className={styles.btn}>{t('common:edit')}</button>
-                    <button onClick={()=>removeUser(u.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete')}</button>
+                    <button onClick={()=>openEdit(u)} className={styles.btn}>{t('common:edit','Edit')}</button>
+                    <button onClick={()=>removeUser(u.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete','Delete')}</button>
                   </div>
                 </td>
               </tr>
             ))}
             {!users.length && (
-              <tr><td colSpan={5} style={{color:'var(--sb-muted)', padding:'1rem'}}>{t('common:noItems')}</td></tr>
+              <tr><td colSpan={7} style={{color:'var(--sb-muted)', padding:'1rem'}}>{t('common:noItems','No items')}</td></tr>
             )}
           </tbody>
         </table>
@@ -328,45 +426,66 @@ export default function UsersAdmin() {
         <div className={styles.modalScrim} onClick={(e)=>{ if(e.target===e.currentTarget) closeEdit(); }}>
           <div className={styles.modalCard}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-white">{t('users:editTitle')}</h3>
-              <button className={styles.btn} onClick={closeEdit} aria-label={t('common:close')!}>✕</button>
+              <h3 className="text-lg font-semibold text-white">{t('users:editTitle','Edit User')}</h3>
+              <button className={styles.btn} onClick={closeEdit} aria-label={t('common:close','Close')!}>✕</button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:firstName')}</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:firstName','First name')}</label>
                 <input className={styles.input} value={edit.firstName}
                   onChange={(e)=>setEdit(prev=>prev.open?{...prev,firstName:e.target.value}:prev)} />
               </div>
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:lastName')}</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:lastName','Last name')}</label>
                 <input className={styles.input} value={edit.lastName}
                   onChange={(e)=>setEdit(prev=>prev.open?{...prev,lastName:e.target.value}:prev)} />
               </div>
+
               <div className="md:col-span-2">
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:username')}</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:username','Username')}</label>
                 <input className={styles.input} value={edit.username}
                   onChange={(e)=>setEdit(prev=>prev.open?{...prev,username:e.target.value}:prev)} />
               </div>
+
+              {/* NEW: birthday */}
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:role')}</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:birthday','Birthday')}</label>
+                <input className={styles.input} type="date" value={edit.birthday}
+                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,birthday:e.target.value}:prev)} />
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:role','Role')}</label>
                 <select className={styles.select} value={edit.role}
                   onChange={(e)=>setEdit(prev=>prev.open?{...prev,role:e.target.value as Role}:prev)}>
                   {['admin','teacher','student','kiosk'].map(r=><option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
+
+              {/* NEW: classGrade (students only; Hebrew values) */}
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:newPasswordOptional')}</label>
-                <input className={styles.input} type="password" placeholder={t('users:keepCurrentPassword')!}
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:classGrade','Class Grade')}</label>
+                <select className={styles.select} value={edit.classGrade}
+                  disabled={edit.role!=='student'}
+                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,classGrade:e.target.value}:prev)}>
+                  {CLASS_GRADE_VALUES.map(val => <option key={val} value={val}>{`כיתה ${val}`}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-neutral-300 mb-1">{t('users:newPasswordOptional','New password (optional)')}</label>
+                <input className={styles.input} type="password" placeholder={t('users:keepCurrentPassword','Leave empty to keep current')!}
                   value={(edit as any).newPassword}
                   onChange={(e)=>setEdit(prev=>prev.open?{...prev,newPassword:e.target.value}:prev)} />
               </div>
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={closeEdit} className={styles.btn}>{t('common:cancel')}</button>
+              <button onClick={closeEdit} className={styles.btn}>{t('common:cancel','Cancel')}</button>
               <button onClick={saveEdit} disabled={savingEdit}
-                className={`${styles.btn} ${styles.btnPrimary}`}>{savingEdit?t('common:saving'):t('common:saveChanges')}</button>
+                className={`${styles.btn} ${styles.btnPrimary}`}>{savingEdit?t('common:saving','Saving...'):t('common:saveChanges','Save changes')}</button>
             </div>
           </div>
         </div>

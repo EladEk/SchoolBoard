@@ -1,0 +1,37 @@
+{
+  "tabs": {
+    "advisories": "Advisories"
+  },
+  "title": "Advisories",
+  "subtitle": "Manage “responsible teacher” for each student",
+  "onlyUnassigned": "Show only unassigned in pool",
+  "teachers": "Teachers",
+  "searchTeachers": "Search teachers...",
+  "noTeachers": "No teachers found",
+  "studentsPool": "Students Pool",
+  "searchStudents": "Search students...",
+  "assignAllTo": "Assign all → {{teacher}}",
+  "noStudentsInPool": "No students in pool",
+  "assignedTo": "Assigned to {{teacher}}",
+  "unassignAll": "Unassign all",
+  "noStudentsAssigned": "No students assigned",
+  "assign": "Assign",
+  "unassign": "Unassign",
+  "advisor": "Advisor",
+  "teacherDefault": "teacher",
+  "studentDefault": "student",
+  "toast": {
+    "assigned": "Assigned {{student}} → {{teacher}}",
+    "assignFail": "Failed to assign.",
+    "unassigned": "Unassigned {{student}}",
+    "unassignFail": "Failed to unassign.",
+    "bulkAssigned": "Assigned {{count}} students.",
+    "bulkAssignFail": "Bulk assign failed.",
+    "bulkUnassigned": "Unassigned {{count}} students.",
+    "bulkUnassignFail": "Bulk unassign failed."
+  },
+  "confirm": {
+    "bulkAssign": "Assign ALL currently filtered students ({{count}}) to \"{{teacher}}\"?",
+    "bulkUnassign": "Unassign ALL students currently assigned to this teacher ({{count}})?"
+  }
+}

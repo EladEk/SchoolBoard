@@ -1,149 +1,129 @@
 /* ===========================
-   Teacher Dashboard – Polished
+   Teacher Dashboard – Admin-like
    =========================== */
 
 :root {
-  /* Design tokens (tweak once, used everywhere) */
-  --td-bg: #0a0a0a;
-  --td-card: #0f172a;
-  --td-border: #263041;
-  --td-muted: #9aa0a6;
-  --td-fg: #e5e7eb;
+  /* Align tokens with AdminDashboard.module.css */
+  --td-bg: #0b0b0c;           /* page background */
+  --td-surface: #141416;      /* cards / surfaces */
+  --td-surface-2: #1b1c1f;    /* inputs / sub-surfaces */
+  --td-border: #2a2b30;       /* borders */
+  --td-muted: #a6a7ab;        /* muted text */
+  --td-text: #f2f3f5;         /* foreground */
+  --td-primary: #2563eb;      /* primary accent */
 
-  --td-accent: #0ea5e9;
-  --td-accent-ink: #e0f2fe;
+  --td-danger: #dc2626;
+  --td-danger-600: #b91c1c;
 
-  --td-radius: 14px;
-  --td-radius-sm: 10px;
-  --td-pad: 16px;
-  --td-gap: 12px;
-
-  --td-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+  --td-radius-lg: 16px;
+  --td-radius-md: 12px;
+  --td-shadow-1: 0 6px 18px rgba(0,0,0,.35);
 }
 
-/* Page wrapper */
+/* page shell (matches Admin .page) */
 .tdash-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--td-gap);
-  padding: var(--td-pad);
+  min-height: 100vh;
   background: var(--td-bg);
-  min-height: 100%;
-  max-width: 1200px;
-  margin-inline: auto;
+  color: var(--td-text);
+  display: grid;
+  grid-template-rows: auto auto 1fr;
 }
 
-/* Top area that holds the tabs (header with local nav) */
+/* header (matches Admin .header) */
 .tdash-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(20,20,22,.9);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--td-border);
 }
 
-/* Tabs bar */
-.tdash-tabs {
+/* internal bar spacing like Admin .headerBar */
+.tdash-header .tdash-tabs {
   display: flex;
   gap: 8px;
-  align-items: center;
-  padding: 6px;
-  border: 1px solid var(--td-border);
-  border-radius: var(--td-radius);
-  background: linear-gradient(180deg, rgba(30,41,59,0.45), rgba(15,23,42,0.65));
-  backdrop-filter: blur(4px);
-  overflow-x: auto;
-  scrollbar-width: none;         /* Firefox */
-}
-.tdash-tabs::-webkit-scrollbar { /* Chrome/Safari */
-  display: none;
+  flex-wrap: wrap;
+  padding-block: 12px;
+  padding-inline: 24px;
+  margin: 0; /* reset */
+  border: 0; /* header already has the divider */
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
-/* Tab button */
+/* tab buttons (like Admin .tabBtn + .tabBtnActive) */
 .tdash-tab {
-  appearance: none;
-  border: 1px solid transparent;
-  background: rgba(255,255,255,0.03);
-  color: var(--td-fg);
-  padding: 8px 14px;
-  border-radius: var(--td-radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 60ms ease;
-  position: relative;
-}
-
-.tdash-tab:hover {
-  background: rgba(255,255,255,0.06);
-}
-
-.tdash-tab:active {
-  transform: translateY(1px);
-}
-
-/* Focus ring for keyboard nav */
-.tdash-tab:focus-visible {
-  outline: 2px solid var(--td-accent);
-  outline-offset: 2px;
-}
-
-/* Active tab – pill + underline indicator */
-.tdash-tab.active {
-  background: #0b2e4a;
-  color: var(--td-accent-ink);
-  border-color: #10496e;
-  box-shadow: inset 0 0 0 1px rgba(14,165,233,0.35);
-}
-.tdash-tab.active::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: -7px;
-  height: 3px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, rgba(14,165,233,0.25), rgba(14,165,233,1), rgba(14,165,233,0.25));
-}
-
-/* Main card */
-.tdash-main {
-  background: var(--td-card);
+  background: #16171b;
   border: 1px solid var(--td-border);
-  border-radius: var(--td-radius);
-  padding: calc(var(--td-pad) + 2px);
-  box-shadow: var(--td-shadow);
+  color: var(--td-text);
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, transform .05s ease;
+  appearance: none;
+}
+.tdash-tab:hover { background: #1f2026; }
+.tdash-tab:active { transform: translateY(1px); }
+
+.tdash-tab.active {
+  background: #26272e;
+  border-color: #3a3b44;
 }
 
-/* Section area where each tab renders content */
+/* main (matches Admin .main) */
+.tdash-main {
+  padding: 24px;
+}
+
+/* section/card (matches Admin .section) */
 .tdash-section {
-  min-height: 320px;
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: var(--td-shadow-1);
 }
 
-/* Helper: subtle section headings if you add any */
+/* Optional subtle heading style inside sections */
 .tdash-section h2 {
-  color: var(--td-fg);
-  font-size: 1.1rem;
-  font-weight: 600;
   margin: 0 0 10px;
+  font-weight: 600;
+  font-size: clamp(16px, 2vw, 18px);
 }
 
-/* Muted text helper */
-.tdash-muted {
-  color: var(--td-muted);
+/* utilities */
+.tdash-muted { color: var(--td-muted); }
+
+/* TeacherDashboard.css – fixed tab styling */
+.tdash-tab {
+  background: #16171b;
+  border: 1px solid var(--td-border);
+  color: var(--td-text);
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, transform .05s ease;
+  appearance: none;
+}
+.tdash-tab:hover { background: #1f2026; }
+.tdash-tab:active { transform: translateY(1px); }
+
+.tdash-tab.active {
+  background: var(--td-primary);
+  border-color: var(--td-primary);
+  color: #fff;
+  font-weight: 600;
 }
 
-/* Responsive tweaks */
+
+/* responsive tweaks */
 @media (max-width: 768px) {
-  .tdash-page {
-    padding: 12px;
-  }
-  .tdash-main {
-    padding: 14px;
-  }
-  .tdash-tab {
-    padding: 8px 12px;
-  }
+  .tdash-main { padding: 16px; }
+  .tdash-header .tdash-tabs { padding-inline: 16px; }
+  .tdash-tab { padding: 8px 10px; }
 }
 
-/* RTL support (Hebrew) – relies on <html dir="rtl"> already set by i18n */
-html[dir="rtl"] .tdash-tab.active::after {
-  left: 12px; right: 12px; /* keep centered underline in RTL too */
-}
+/* RTL niceties (mirror Admin rules) */
+html[dir="rtl"] .tdash-header .tdash-tabs { flex-direction: row-reverse; }

@@ -3,7 +3,8 @@
     "users": "משתמשים",
     "classes": "כיתות",
     "lessons": "שיעורים",
-    "timetable": "מערכת שעות"
+    "timetable": "מערכת שעות",
+    "advisories" : "חונכות"
   },
   "dashboard": {
     "title": "לוח ניהול",

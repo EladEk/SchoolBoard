@@ -3,7 +3,8 @@
     "users": "Users",
     "classes": "Classes",
     "lessons": "Lessons",
-    "timetable": "Timetable"
+    "timetable": "Timetable",
+    "advisories" : "Advisories"
   },
   "dashboard": {
     "title": "Admin Dashboard",

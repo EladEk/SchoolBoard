@@ -4,11 +4,14 @@
   "edit": "Edit",
   "delete": "Delete",
   "cancel": "Cancel",
-  "saving": "Saving…",
-  "saveChanges": "Save changes",
+  "saving": "Saving...",
+  "saveChanges": "Save Changes",
   "remove": "Remove",
   "add": "Add",
   "noItems": "No items",
-  "selectOption": "Select…",
-  "close": "Close"
+  "selectOption": "Select...",
+  "close": "Close",
+  "downloadTemplate": "Download Template",
+  "export": "Export",
+  "import": "Import"
 }

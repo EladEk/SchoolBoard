@@ -10,5 +10,8 @@
   "add": "הוסף",
   "noItems": "אין פריטים",
   "selectOption": "בחר…",
-  "close": "סגור"
+  "close": "סגור",
+  "downloadTemplate": "הורד תבנית",
+  "export": "ייצוא",
+  "import": "ייבוא"
 }

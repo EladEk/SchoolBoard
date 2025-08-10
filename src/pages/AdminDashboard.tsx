@@ -1,15 +1,19 @@
+// src/pages/AdminDashboard.tsx
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UsersAdmin from '../components/admin/UsersAdmin';
 import ClassesAdmin from '../components/admin/ClassesAdmin';
 import LessonsAdmin from '../components/admin/LessonsAdmin';
 import LessonsScheduler from '../components/lessons/LessonsScheduler';
+import TeacherAdvisorsAdmin from '../components/admin/TeacherAdvisorsAdmin'; // <— NEW
 import { useTranslation } from 'react-i18next';
 import styles from './AdminDashboard.module.css';
 
 export default function AdminDashboard() {
   const { t } = useTranslation();
-  const [active, setActive] = useState<'users' | 'classes' | 'lessons' | 'timetable'>('users');
+  const [active, setActive] = useState<
+    'users' | 'classes' | 'lessons' | 'timetable' | 'advisories'
+  >('users');
   const navigate = useNavigate();
 
   const session = useMemo(() => {
@@ -51,7 +55,7 @@ export default function AdminDashboard() {
 
         {/* Tabs bar under header */}
         <nav className={styles.tabsBar}>
-          {(['users','classes','lessons','timetable'] as const).map((key) => (
+          {(['users','classes','lessons','timetable','advisories'] as const).map((key) => (
             <button
               key={key}
               onClick={() => setActive(key)}
@@ -73,6 +77,7 @@ export default function AdminDashboard() {
           {active === 'classes' && <ClassesAdmin />}
           {active === 'lessons' && <LessonsAdmin />}
           {active === 'timetable' && <LessonsScheduler />}
+          {active === 'advisories' && <TeacherAdvisorsAdmin />}{/* NEW */}
         </section>
       </main>
     </div>

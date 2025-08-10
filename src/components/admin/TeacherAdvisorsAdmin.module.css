@@ -1,0 +1,193 @@
+/* src/components/admin/TeacherAdvisorsAdmin.module.css */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+}
+
+.headerLeft h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+}
+
+.sub {
+  margin: 4px 0 0;
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.col { display: flex; flex-direction: column; gap: 16px; }
+.colWide { display: flex; flex-direction: column; gap: 16px; }
+
+.card {
+  background: var(--card-bg, #111);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.list {
+  max-height: 62vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.teacherItem,
+.teacherItemSelected {
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(255,255,255,0.08);
+  color: #fff; /* ensure white text */
+}
+
+.teacherItem:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.teacherItemSelected {
+  background: rgba(100,180,255,0.15); /* lighter for better contrast */
+  color: #fff;
+}
+
+.titleRow { display: flex; justify-content: space-between; gap: 8px; }
+.primary { font-weight: 600; color: #fff; }
+.meta { opacity: 0.7; font-size: 12px; color: #ccc; }
+
+.input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  color: inherit;
+}
+
+.row { display: flex; gap: 8px; align-items: center; }
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.studentRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px dashed rgba(255,255,255,0.08);
+}
+
+.studentInfo { display: flex; flex-direction: column; }
+
+.actions { display: flex; gap: 8px; }
+
+.btn,
+.btnPrimary {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+.btn:disabled,
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:focus,
+.btnPrimary:focus {
+  outline: 2px solid rgba(120,200,255,0.6);
+  outline-offset: 2px;
+}
+
+.btnPrimary {
+  border-color: rgba(120,200,255,0.6);
+}
+.btnPrimary:hover:not(:disabled) {
+  background: rgba(120,200,255,0.1);
+}
+
+.empty {
+  padding: 16px;
+  opacity: 0.7;
+  font-size: 13px;
+  text-align: center;
+}
+
+.toastSuccess,
+.toastError,
+.toastInfo {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  color: #0b0b0b;
+  background: #b7ffb7;
+  z-index: 1000;
+}
+.toastError { background: #ffb7c1; }
+.toastInfo { background: #c6dcff; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .split {
+    grid-template-columns: 1fr;
+  }
+}

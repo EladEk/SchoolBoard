@@ -7,6 +7,8 @@
     "class": "כיתה",
     "lesson": "שיעור",
     "save": "שמירה",
+    "importing" : "מייבא…",
+    "askBeforeDeleteSession": "אל תשאל שוב לפני מחיקות (במהלך סשן זה)",
     "cancel": "ביטול",
     "placed": "מיקומים לשיעור שבחרת: <b>{{count}}</b>",
     "loadedEntries": "נטענו {{count}} משבצות.",
@@ -26,5 +28,11 @@
     "prepareFailed": "שגיאה בהכנה: {{msg}}",
     "selectLessonFirst": "יש לבחור שיעור לפני סימון משבצת."
   },
-  "days": ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"]
+  "toasts": {
+    "deleted": "נמחק!",
+    "saved": "נשמר",
+    "saving": "שומר"
+  },
+  "days": ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"],
+  "confirmDelete": "אשר מחיקה"
 }

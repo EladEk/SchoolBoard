@@ -5,6 +5,8 @@
   "username": "שם משתמש",
   "password": "סיסמה",
   "role": "תפקיד",
+  "birthday": "תאריך לידה",
+  "classGrade": "כיתה",
   "create": "יצירת משתמש",
   "creating": "יוצר…",
   "table": {

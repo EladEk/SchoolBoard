@@ -18,9 +18,17 @@ import users_he from './locales/he/users.json';
 import classes_he from './locales/he/classes.json';
 import lessons_he from './locales/he/lessons.json';
 
-// ---- NEW: dashboard namespace ----
+// ---- dashboard namespace ----
 import dashboard_en from './locales/en/dashboard.json';
 import dashboard_he from './locales/he/dashboard.json';
+
+// ---- advisories namespace ----
+import advisories_en from './locales/en/advisories.json';
+import advisories_he from './locales/he/advisories.json';
+
+// ---- studentPlans namespace ----
+import studentPlans_en from './locales/en/studentPlans.json';
+import studentPlans_he from './locales/he/studentPlans.json';
 
 const ns: string[] = [
   'common',
@@ -30,6 +38,8 @@ const ns: string[] = [
   'classes',
   'lessons',
   'dashboard',
+  'advisories',
+  'studentPlans'
 ];
 
 i18n
@@ -48,6 +58,8 @@ i18n
         classes: classes_en,
         lessons: lessons_en,
         dashboard: dashboard_en,
+        advisories: advisories_en,
+        studentPlans: studentPlans_en
       },
       he: {
         common: common_he,
@@ -57,6 +69,8 @@ i18n
         classes: classes_he,
         lessons: lessons_he,
         dashboard: dashboard_he,
+        advisories: advisories_he,
+        studentPlans: studentPlans_he
       },
     },
     interpolation: { escapeValue: false },

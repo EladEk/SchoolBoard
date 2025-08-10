@@ -1,0 +1,20 @@
+{
+  "studentsTitle": "התלמידים שלי",
+  "noStudents": "אין תלמידים משויכים אליך.",
+  "planFor": "מערכת שבועית עבור {{student}}",
+  "selectStudent": "בחר תלמיד כדי לראות את המערכת השבועית שלו.",
+  "noLessons": "לא נמצאו שיעורים.",
+  "day": "יום",
+  "lesson": "שיעור",
+  "advisor": "מורה אחראי",
+  "time": "שעה",
+  "days": {
+    "Sunday": "ראשון",
+    "Monday": "שני",
+    "Tuesday": "שלישי",
+    "Wednesday": "רביעי",
+    "Thursday": "חמישי",
+    "Friday": "שישי",
+    "Saturday": "שבת"
+  }
+}

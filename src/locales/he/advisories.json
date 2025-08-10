@@ -1,0 +1,37 @@
+{
+  "tabs": {
+    "advisories": "חונכות"
+  },
+  "title": "חונכות תלמידים",
+  "subtitle": "ניהול \"מורה אחראי\" לכל תלמיד",
+  "onlyUnassigned": "הצג רק תלמידים ללא חונך",
+  "teachers": "מורים",
+  "searchTeachers": "חיפוש מורים...",
+  "noTeachers": "לא נמצאו מורים",
+  "studentsPool": "מאגר תלמידים",
+  "searchStudents": "חיפוש תלמידים...",
+  "assignAllTo": "שייך את כולם → {{teacher}}",
+  "noStudentsInPool": "אין תלמידים במאגר",
+  "assignedTo": "תלמידים המשויכים ל־{{teacher}}",
+  "unassignAll": "בטל שיוך לכולם",
+  "noStudentsAssigned": "אין תלמידים משויכים",
+  "assign": "שייך",
+  "unassign": "בטל שיוך",
+  "advisor": "חונך",
+  "teacherDefault": "מורה",
+  "studentDefault": "תלמיד",
+  "toast": {
+    "assigned": "{{student}} שויך ל־{{teacher}}",
+    "assignFail": "השיוך נכשל.",
+    "unassigned": "בוטל שיוך עבור {{student}}",
+    "unassignFail": "ביטול השיוך נכשל.",
+    "bulkAssigned": "שויכו {{count}} תלמידים.",
+    "bulkAssignFail": "שיוך מרוכז נכשל.",
+    "bulkUnassigned": "בוטל שיוך ל־{{count}} תלמידים.",
+    "bulkUnassignFail": "ביטול שיוך מרוכז נכשל."
+  },
+  "confirm": {
+    "bulkAssign": "לשייך את כל התלמידים המסוננים ({{count}}) ל\"{{teacher}}\"?",
+    "bulkUnassign": "לבטל שיוך לכל התלמידים המשויכים למורה זה ({{count}})?"
+  }
+}
