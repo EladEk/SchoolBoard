@@ -1,4 +1,4 @@
-// src/pages/TeacherDashboard.tsx – fixed classes + translation
+// src/pages/TeacherDashboard.tsx – fixed: remove unsupported teacherId props
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Header from '../components/Header';
@@ -20,12 +20,16 @@ export default function TeacherDashboard() {
   }, []);
 
   const displayName =
-    session?.displayName || session?.username || session?.user?.username || '';
+    session?.displayName ||
+    session?.username ||
+    session?.user?.username ||
+    [session?.user?.firstName, session?.user?.lastName].filter(Boolean).join(' ') ||
+    '';
 
   return (
     <div className="tdash-page">
       <Header
-        title={t('teacher:dashboardTitle')}
+        title={t('teacher:dashboardTitle', 'Teacher Schedule')}
         userName={displayName}
         role={session?.role}
         navMode="logoutOnly"
@@ -37,27 +41,27 @@ export default function TeacherDashboard() {
             className={`tdash-tab ${tab === 'view' ? 'active' : ''}`}
             onClick={() => setTab('view')}
           >
-            {t('teacher:tabs.view')}
+            {t('teacher:tabs.view', 'My Weekly Plan')}
           </button>
           <button
             className={`tdash-tab ${tab === 'edit' ? 'active' : ''}`}
             onClick={() => setTab('edit')}
           >
-            {t('teacher:tabs.edit')}
+            {t('teacher:tabs.edit', 'My Lessons')}
           </button>
           <button
             className={`tdash-tab ${tab === 'students' ? 'active' : ''}`}
             onClick={() => setTab('students')}
           >
-            {t('studentPlans:studentsTitle')}
+            {t('studentPlans:studentsTitle', 'Students')}
           </button>
         </nav>
       </header>
 
       <main className="tdash-main">
-        {tab === 'edit' && <TeacherLessons teacherId={session?.uid} />}
-        {tab === 'view' && <TeacherTimetableView teacherId={session?.uid} />}
-        {tab === 'students' && <TeacherStudentPlans teacherId={session?.uid} />}
+        {tab === 'edit' && <TeacherLessons />}
+        {tab === 'view' && <TeacherTimetableView />}
+        {tab === 'students' && <TeacherStudentPlans />}
       </main>
     </div>
   );
