@@ -4,12 +4,11 @@ import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { db } from '../firebase/app';
 import * as bcrypt from 'bcryptjs';
+import styles from './LoginPage.module.css';
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
 
-function isEmail(v: string) {
-  return v.includes('@');
-}
+function isEmail(v: string) { return v.includes('@'); }
 function isBcryptHash(hash?: string) {
   if (!hash || typeof hash !== 'string') return false;
   return hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$');
@@ -62,48 +61,31 @@ export default function LoginPage() {
     navigate('/admin');
   }
 
-  // ---- NEW: look up by username/usernameLower first, then displayName/displayNameLower, then email
   async function findAppUser(inputRaw: string) {
     const input = inputRaw.trim();
     const lower = input.toLowerCase();
 
-    // username exact
-    let snap = await getDocs(
-      query(collection(db, 'appUsers'), where('username', '==', input), limit(1))
-    );
+    let snap = await getDocs(query(collection(db, 'appUsers'), where('username', '==', input), limit(1)));
     if (!snap.empty) return snap.docs[0];
 
-    // usernameLower
-    snap = await getDocs(
-      query(collection(db, 'appUsers'), where('usernameLower', '==', lower), limit(1))
-    );
+    snap = await getDocs(query(collection(db, 'appUsers'), where('usernameLower', '==', lower), limit(1)));
     if (!snap.empty) return snap.docs[0];
 
-    // displayName exact
-    snap = await getDocs(
-      query(collection(db, 'appUsers'), where('displayName', '==', input), limit(1))
-    );
+    snap = await getDocs(query(collection(db, 'appUsers'), where('displayName', '==', input), limit(1)));
     if (!snap.empty) return snap.docs[0];
 
-    // displayNameLower
-    snap = await getDocs(
-      query(collection(db, 'appUsers'), where('displayNameLower', '==', lower), limit(1))
-    );
+    snap = await getDocs(query(collection(db, 'appUsers'), where('displayNameLower', '==', lower), limit(1)));
     if (!snap.empty) return snap.docs[0];
 
-    // email (optional)
     if (isEmail(input)) {
-      snap = await getDocs(
-        query(collection(db, 'appUsers'), where('email', '==', input), limit(1))
-      );
+      snap = await getDocs(query(collection(db, 'appUsers'), where('email', '==', input), limit(1)));
       if (!snap.empty) return snap.docs[0];
     }
-
     return null;
   }
 
   async function loginWithCustomAuth(identifier: string, pass: string) {
-    const docRef = await findAppUser(identifier);
+    const docRef: any = await findAppUser(identifier);
     if (!docRef) throw new Error('User not found');
 
     const data = docRef.data() as any;
@@ -150,9 +132,9 @@ export default function LoginPage() {
 
     try {
       if (isEmail(input)) {
-        await loginWithFirebaseAuth(input, password);   // admins via Firebase Auth
+        await loginWithFirebaseAuth(input, password);
       } else {
-        await loginWithCustomAuth(input, password);     // teachers/students/kiosk via appUsers
+        await loginWithCustomAuth(input, password);
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -163,52 +145,41 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4"
-      >
-        <h1 className="text-xl font-semibold">Sign in</h1>
+    <div className={styles.page}>
+      <form onSubmit={handleSubmit} className={styles.card}>
+        <h1 className={styles.title}>Sign in</h1>
+        <p className={styles.subtitle}>Admins log in with email. Others can use username/display name.</p>
 
-        <div className="space-y-1">
-          <label className="text-sm text-neutral-300">Username / Display name / Admin email</label>
-          <input
-            type="text"
-            value={displayNameOrEmail}
-            onChange={(e) => setDisplayNameOrEmail(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-            autoComplete="username"
-            placeholder="e.g. elad2  — or admin email"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm text-neutral-300">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-white"
-            autoComplete="current-password"
-          />
-        </div>
-
-        {error && (
-          <div className="text-sm text-red-400 bg-red-950/40 border border-red-800 rounded-lg px-3 py-2" role="alert">
-            {error}
+        <div className={styles.form}>
+          <div>
+            <label className={styles.label}>Username / Display name / Admin email</label>
+            <input
+              type="text"
+              value={displayNameOrEmail}
+              onChange={(e) => setDisplayNameOrEmail(e.target.value)}
+              className={styles.input}
+              autoComplete="username"
+              placeholder="e.g. elad2 — or admin email"
+            />
           </div>
-        )}
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className={[
-            'w-full px-3 py-2 rounded-xl transition text-white',
-            canSubmit ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-neutral-700 cursor-not-allowed',
-          ].join(' ')}
-        >
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </button>
+          <div>
+            <label className={styles.label}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={styles.input}
+              autoComplete="current-password"
+            />
+          </div>
+
+          {error && <div className={styles.error} role="alert">{error}</div>}
+
+          <button type="submit" disabled={!canSubmit} className={styles.submitBtn}>
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </button>
+        </div>
       </form>
     </div>
   );

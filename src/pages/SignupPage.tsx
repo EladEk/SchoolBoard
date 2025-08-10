@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '../firebase/app';
+import styles from './SignupPage.module.css';
 
 export default function SignupPage() {
   const [params] = useSearchParams();
@@ -22,11 +23,11 @@ export default function SignupPage() {
       if (!token) { setErr('Missing token'); return; }
       const snap = await getDoc(doc(db, 'invites', token));
       if (!snap.exists()) { setErr('Invalid or used token'); return; }
-      const data = snap.data()!;
-      setEmail(data.email);
-      setDisplayName(data.displayName);
-      setRole(data.role);
-      if (data.tempPassword) setAdminPassword(data.tempPassword); // admin-specified password
+      const data = snap.data()! as any;
+      setEmail(data.email || '');
+      setDisplayName(data.displayName || '');
+      setRole((data.role as any) || 'teacher');
+      if (data.tempPassword) setAdminPassword(data.tempPassword);
     })();
   }, [token]);
 
@@ -51,9 +52,10 @@ export default function SignupPage() {
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      await deleteDoc(doc(db, 'invites', token)); // one-time use
+      await deleteDoc(doc(db, 'invites', token));
 
-      nav('/admin'); // or wherever
+      // Route by role if you like; keeping /admin for now as before
+      nav('/admin');
     } catch (e: any) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -62,33 +64,41 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
-      <form onSubmit={doSignup} className="w-full max-w-md space-y-4 bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-        <h1 className="text-xl font-semibold">Create your account</h1>
+    <div className={styles.page}>
+      <form onSubmit={doSignup} className={styles.card}>
+        <h1 className={styles.title}>Create your account</h1>
+        <p className={styles.subtitle}>Confirm your details and set a password.</p>
 
-        <div className="text-sm text-neutral-400">
-          <div><b>Email:</b> {email || '—'}</div>
-          <div><b>Name:</b> {displayName || '—'}</div>
-          <div><b>Role:</b> {role}</div>
+        <div className={`${styles.infoBox} ${styles.stackSm}`}>
+          <div className={styles.infoRow}><span className={styles.infoKey}>Email:</span><span className={styles.infoVal}>{email || '—'}</span></div>
+          <div className={styles.infoRow}><span className={styles.infoKey}>Name:</span><span className={styles.infoVal}>{displayName || '—'}</span></div>
+          <div className={styles.infoRow}><span className={styles.infoKey}>Role:</span><span className={styles.infoVal}>{role}</span></div>
         </div>
 
-        {!adminPassword && (
-          <input
-            type="password" value={password} onChange={e => setPassword(e.target.value)}
-            placeholder="Choose a password (min 6)"
-            className="w-full px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700"
-          />
-        )}
-        {adminPassword && (
-          <div className="text-sm text-neutral-400">
-            Admin set an initial password for you. You’ll be able to change it later.
-          </div>
-        )}
+        <div className={styles.form}>
+          {!adminPassword && (
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Choose a password (min 6)"
+              className={styles.input}
+              autoComplete="new-password"
+            />
+          )}
 
-        {err && <div className="text-sm text-red-400">{err}</div>}
-        <button type="submit" disabled={busy || !email} className="w-full px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60">
-          {busy ? 'Creating…' : 'Create account'}
-        </button>
+          {adminPassword && (
+            <div className={styles.hint}>
+              Admin set an initial password for you. You’ll be able to change it later.
+            </div>
+          )}
+
+          {err && <div className={styles.error}>{err}</div>}
+
+          <button type="submit" disabled={busy || !email} className={styles.submitBtn}>
+            {busy ? 'Creating…' : 'Create account'}
+          </button>
+        </div>
       </form>
     </div>
   );
