@@ -18,9 +18,8 @@ type AppUser = {
   username: string;
   usernameLower?: string;
   role: Role;
-  // NEW FIELDS
-  birthday?: string;      // ISO "YYYY-MM-DD" (string)
-  classGrade?: string;    // one of: "א","ב","ג","ד","ה","ו","ז","ח","ט","י","יא","יב"
+  birthday?: string;      // ISO "YYYY-MM-DD"
+  classGrade?: string;    // Hebrew letter(s) "א".."יב"
   passwordHash?: string;
   salt?: string;
   createdAt?: any;
@@ -28,7 +27,7 @@ type AppUser = {
 
 type ToastState =
   | { show: false }
-  | { show: true; kind: 'success' | 'error' | 'info'; message: string };
+  | { show: true, kind: 'success'|'error'|'info', message: string };
 
 type EditState =
   | { open: false }
@@ -40,40 +39,39 @@ type EditState =
       username: string;
       role: Role;
       newPassword: string;
-      // NEW
       birthday: string;
-      classGrade: string; // Hebrew value stored in DB
+      classGrade: string;
     };
 
-// Hebrew grade values (storage + UI)
+// ----- Grades helpers -----
 const CLASS_GRADE_VALUES = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","יא","יב"] as const;
 type GradeHeb = typeof CLASS_GRADE_VALUES[number];
-
-function isHebGrade(v: string): v is GradeHeb {
-  return CLASS_GRADE_VALUES.includes(v as GradeHeb);
-}
-
-// Normalize any input (numeric "1".."12" or "כיתה X" or bare Hebrew) -> Hebrew letter(s)
+function isHebGrade(v: string): v is GradeHeb { return CLASS_GRADE_VALUES.includes(v as GradeHeb); }
 function toHebGrade(input: any): string {
   const raw = String(input ?? '').trim();
   if (!raw) return '';
-  // If already exact Hebrew value
   if (isHebGrade(raw)) return raw;
-  // Strip optional "כיתה " prefix
-  const noPrefix = raw.replace(/^כיתה\s*/,'');
+  const noPrefix = raw.replace(/^כיתה\s*/, '');
   if (isHebGrade(noPrefix)) return noPrefix;
-
-  // Numeric -> Hebrew
   const num = Number(raw);
-  if (!Number.isNaN(num) && num >= 1 && num <= 12) {
-    return CLASS_GRADE_VALUES[num - 1];
-  }
-  // Map common Hebrew words like "י\"א" variants (normalize punctuation/spaces)
-  const compact = noPrefix.replace(/[^\u0590-\u05FF]/g, ''); // keep Hebrew letters only
+  if (!Number.isNaN(num) && num >= 1 && num <= 12) return CLASS_GRADE_VALUES[num-1];
+  const compact = noPrefix.replace(/[^\u0590-\u05FF]/g, '');
   if (isHebGrade(compact)) return compact;
-
-  // Fallback: unknown -> empty
   return '';
+}
+
+// ----- Sort helpers -----
+type SortKey = 'username'|'firstName'|'lastName'|'role'|'birthday'|'classGrade';
+type SortDir = 'asc'|'desc';
+type SortState = { key: SortKey, dir: SortDir };
+const DEFAULT_SORT: SortState = { key: 'username', dir: 'asc' };
+
+function compareStrings(a?: string, b?: string) {
+  const A = (a ?? '').toString().toLowerCase();
+  const B = (b ?? '').toString().toLowerCase();
+  if (A < B) return -1;
+  if (A > B) return 1;
+  return 0;
 }
 
 export default function UsersAdmin() {
@@ -81,11 +79,13 @@ export default function UsersAdmin() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [toast, setToast] = useState<ToastState>({ show: false });
 
+  // NEW: search + sort
+  const [queryText, setQueryText] = useState('');
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
+
   const [form, setForm] = useState({
     firstName: '', lastName: '', username: '', password: '', role: 'teacher' as Role,
-    // NEW in create
-    birthday: '',
-    classGrade: 'א', // store Hebrew directly
+    birthday: '', classGrade: 'א',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -98,7 +98,7 @@ export default function UsersAdmin() {
   useEffect(() => {
     const unsub = onSnapshot(
       query(collection(db, 'appUsers'), orderBy('username')),
-      (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))),
+      (snap) => setUsers(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))),
       (err) => showToast('error', t('users:toasts.loadFail', { msg: err.message })),
     );
     return () => unsub();
@@ -106,12 +106,11 @@ export default function UsersAdmin() {
 
   const canCreate = useMemo(() =>
     form.username.trim() && form.password.trim() && (form.firstName.trim() || form.lastName.trim())
-      ? true : false
   , [form]);
 
-  function showToast(kind: 'success' | 'error' | 'info', message: string) {
+  function showToast(kind: 'success'|'error'|'info', message: string) {
     setToast({ show: true, kind, message });
-    setTimeout(() => setToast({ show: false }), 2600);
+    setTimeout(()=>setToast({ show: false }), 2600);
   }
 
   async function createUser(e: React.FormEvent) {
@@ -122,18 +121,13 @@ export default function UsersAdmin() {
     const lastName = form.lastName.trim();
     const username = form.username.trim();
     const usernameLower = username.toLowerCase();
-    const birthday = form.birthday.trim(); // optional
+    const birthday = form.birthday.trim();
     const classGradeHeb = form.role === 'student' ? toHebGrade(form.classGrade) : '';
 
     try {
       setSubmitting(true);
-      const dupSnap = await getDocs(
-        query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
-      );
-      if (!dupSnap.empty) {
-        showToast('error', t('users:toasts.dupUser', { username }));
-        return;
-      }
+      const dupSnap = await getDocs(query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower)));
+      if (!dupSnap.empty) { showToast('error', t('users:toasts.dupUser', { username })); return; }
 
       const salt = bcrypt.genSaltSync(10);
       const passwordHash = bcrypt.hashSync(form.password, salt);
@@ -143,20 +137,15 @@ export default function UsersAdmin() {
         salt, passwordHash, createdAt: serverTimestamp(),
       };
       if (birthday) payload.birthday = birthday;
-      if (form.role === 'student' && classGradeHeb) payload.classGrade = classGradeHeb; // store Hebrew
+      if (form.role === 'student' && classGradeHeb) payload.classGrade = classGradeHeb;
 
       await addDoc(collection(db, 'appUsers'), payload);
 
-      setForm({
-        firstName: '', lastName: '', username: '', password: '', role: 'teacher',
-        birthday: '', classGrade: 'א',
-      });
+      setForm({ firstName:'', lastName:'', username:'', password:'', role:'teacher', birthday:'', classGrade:'א' });
       showToast('success', t('users:toasts.created', { username }));
-    } catch (err: any) {
+    } catch (err:any) {
       showToast('error', t('users:toasts.createFail', { msg: err?.message || 'unknown' }));
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   }
 
   function openEdit(u: AppUser) {
@@ -165,10 +154,10 @@ export default function UsersAdmin() {
       firstName: u.firstName || '', lastName: u.lastName || '',
       username: u.username || '', role: u.role, newPassword: '',
       birthday: u.birthday || '',
-      classGrade: toHebGrade(u.classGrade) || 'א', // keep Hebrew in UI
+      classGrade: toHebGrade(u.classGrade) || 'א',
     });
   }
-  function closeEdit() { setEdit({ open: false }); }
+  function closeEdit(){ setEdit({ open: false }); }
 
   async function saveEdit() {
     if (!edit.open) return;
@@ -181,61 +170,53 @@ export default function UsersAdmin() {
     const birthday = (edit.birthday || '').trim();
     const classGradeHeb = edit.role === 'student' ? toHebGrade(edit.classGrade) : '';
 
-    if (!username) return showToast('error', t('users:toasts.createFail', { msg: t('users:username', 'Username') }));
+    if (!username) return showToast('error', t('users:toasts.createFail', { msg: t('users:username','Username') }));
     if (!firstName && !lastName) return showToast('error', t('users:toasts.createFail', { msg: t('users:firstName','First name') + '/' + t('users:lastName','Last name') }));
 
     try {
       setSavingEdit(true);
-      const dup = await getDocs(
-        query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
-      );
-      const dupExists = dup.docs.some((d) => d.id !== id);
-      if (dupExists) {
-        showToast('error', t('users:toasts.dupOther', { username }));
-        return;
-      }
+      const dup = await getDocs(query(collection(db, 'appUsers'), where('usernameLower','==',usernameLower)));
+      const dupExists = dup.docs.some(d => d.id !== id);
+      if (dupExists) { showToast('error', t('users:toasts.dupOther', { username })); return; }
 
       const payload: any = {
         firstName, lastName, username, usernameLower, role: edit.role,
         birthday: birthday || '',
-        classGrade: edit.role === 'student' ? (classGradeHeb || '') : '',
+        classGrade: edit.role==='student' ? (classGradeHeb || '') : '',
       };
       if (edit.newPassword?.trim()) {
         const salt = bcrypt.genSaltSync(10);
         const passwordHash = bcrypt.hashSync(edit.newPassword.trim(), salt);
-        payload.salt = salt;
-        payload.passwordHash = passwordHash;
+        payload.salt = salt; payload.passwordHash = passwordHash;
       }
 
       await updateDoc(doc(db, 'appUsers', id), payload);
       showToast('success', t('users:toasts.updated', { username }));
       closeEdit();
-    } catch (err: any) {
+    } catch (err:any) {
       showToast('error', t('users:toasts.updateFail', { msg: err?.message || 'unknown' }));
-    } finally {
-      setSavingEdit(false);
-    }
+    } finally { setSavingEdit(false); }
   }
 
   async function removeUser(id: string) {
     try { await deleteDoc(doc(db, 'appUsers', id)); showToast('success', t('users:toasts.deleted')); }
-    catch (err: any) { showToast('error', t('users:toasts.deleteFail', { msg: err?.message || 'unknown' })); }
+    catch (err:any) { showToast('error', t('users:toasts.deleteFail', { msg: err?.message || 'unknown' })); }
   }
 
+  // ----- Import/Export -----
   function downloadTemplate() {
-    // Include birthday + classGrade (stored/displayed as Hebrew letters)
     const rows = [
-      { username: 'teacher.alex', firstName: 'Alex', lastName: 'Levi', role: 'teacher', password: 'Secret123', birthday: '1985-03-12', classGrade: '' },
-      { username: 'student.neta', firstName: 'Neta',  lastName: 'Cohen', role: 'student', password: 'Temp4567',  birthday: '2011-06-05', classGrade: 'ו' },
+      { username:'teacher.alex', firstName:'Alex', lastName:'Levi', role:'teacher', password:'Secret123', birthday:'1985-03-12', classGrade:'' },
+      { username:'student.neta', firstName:'Neta',  lastName:'Cohen', role:'student', password:'Temp4567',  birthday:'2011-06-05', classGrade:'ו' },
     ];
     const header = ['username','firstName','lastName','role','password','birthday','classGrade'];
     const ws = XLSX.utils.json_to_sheet(rows, { header });
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'UsersTemplate');
-    XLSX.writeFile(wb, 'users-template.xlsx'); showToast('info', t('users:toasts.templateDownloaded', 'Template downloaded'));
+    XLSX.writeFile(wb, 'users-template.xlsx');
+    showToast('info', t('users:toasts.templateDownloaded','Template downloaded'));
   }
 
   function exportUsers() {
-    // Export what we store: Hebrew classGrade
     const rows = users.map(u => ({
       username: u.username || '',
       firstName: u.firstName || '',
@@ -248,23 +229,21 @@ export default function UsersAdmin() {
     const header = ['username','firstName','lastName','role','password','birthday','classGrade'];
     const ws = XLSX.utils.json_to_sheet(rows, { header });
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Users');
-    XLSX.writeFile(wb, 'users-export.xlsx'); showToast('success', t('users:toasts.exported', 'Exported'));
+    XLSX.writeFile(wb, 'users-export.xlsx');
+    showToast('success', t('users:toasts.exported','Exported'));
   }
 
-  function openFilePicker() { fileInputRef.current?.click(); }
-
-  function coerceDateString(v: any): string {
-    return String(v || '').trim();
-  }
+  function openFilePicker(){ fileInputRef.current?.click(); }
+  function coerceDateString(v:any){ return String(v || '').trim(); }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; e.target.value=''; if (!file) return;
     try {
-      setBusyImport(true); showToast('info', t('users:toasts.importing', 'Importing...'));
+      setBusyImport(true); showToast('info', t('users:toasts.importing','Importing...'));
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
+      const wb = XLSX.read(buf, { type:'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rowsRaw: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const rowsRaw: any[] = XLSX.utils.sheet_to_json(ws, { defval:'' });
 
       const existingMap = new Map<string, AppUser>();
       for (const u of users) {
@@ -272,9 +251,7 @@ export default function UsersAdmin() {
         if (key) existingMap.set(key, u);
       }
 
-      let created = 0, updated = 0, skipped = 0;
-      const reasons: string[] = [];
-
+      let created=0, updated=0, skipped=0; const reasons:string[] = [];
       for (let i=0;i<rowsRaw.length;i++){
         const r = rowsRaw[i];
         const username = String(r['username'] ?? r['Username'] ?? '').trim();
@@ -283,17 +260,14 @@ export default function UsersAdmin() {
         const role = String(r['role'] ?? r['Role'] ?? 'student').trim() as Role;
         const password = String(r['password'] ?? r['Password'] ?? '').trim();
         const birthday = coerceDateString(r['birthday'] ?? r['Birthday'] ?? '');
-        // Accept numeric or Hebrew/label, store Hebrew
-        const classGradeHeb = role === 'student'
-          ? toHebGrade(r['classGrade'] ?? r['ClassGrade'] ?? '')
-          : '';
+        const classGradeHeb = role === 'student' ? toHebGrade(r['classGrade'] ?? r['ClassGrade'] ?? '') : '';
 
         if (!username){ skipped++; reasons.push(`Row ${i+2}: missing username`); continue; }
         const key = username.toLowerCase();
         const existing = existingMap.get(key);
 
         if (existing){
-          const payload: any = {
+          const payload:any = {
             firstName, lastName, username, usernameLower:key, role,
             birthday: birthday || '',
             classGrade: role==='student' ? (classGradeHeb || '') : '',
@@ -303,18 +277,18 @@ export default function UsersAdmin() {
             const passwordHash = bcrypt.hashSync(password, salt);
             payload.salt = salt; payload.passwordHash = passwordHash;
           }
-          await updateDoc(doc(db, 'appUsers', existing.id), payload);
+          await updateDoc(doc(db,'appUsers', existing.id), payload);
           updated++;
         } else {
           if (!password){ skipped++; reasons.push(`Row ${i+2}: new user "${username}" missing password`); continue; }
           const salt = bcrypt.genSaltSync(10);
           const passwordHash = bcrypt.hashSync(password, salt);
-          const payload: any = {
+          const payload:any = {
             firstName, lastName, username, usernameLower:key, role, salt, passwordHash, createdAt: serverTimestamp(),
             birthday: birthday || '',
             classGrade: role==='student' ? (classGradeHeb || '') : '',
           };
-          await addDoc(collection(db, 'appUsers'), payload);
+          await addDoc(collection(db,'appUsers'), payload);
           created++;
         }
       }
@@ -325,21 +299,95 @@ export default function UsersAdmin() {
     } finally { setBusyImport(false); }
   }
 
+  // ----- Derived: filtered + sorted users -----
+  const filteredSorted = useMemo(() => {
+    const q = queryText.trim().toLowerCase();
+
+    const filtered = !q ? users : users.filter(u => {
+      const parts = [
+        u.username,
+        u.firstName,
+        u.lastName,
+        u.role,
+        u.birthday,
+        u.role==='student' ? `כיתה ${toHebGrade(u.classGrade)}` : '',
+        u.classGrade, // raw too
+      ].map(x => (x ?? '').toString().toLowerCase());
+      return parts.some(p => p.includes(q));
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      const key = sort.key;
+      let cmp = 0;
+      if (key === 'classGrade') {
+        cmp = compareStrings(toHebGrade(a.classGrade), toHebGrade(b.classGrade));
+      } else {
+        cmp = compareStrings((a as any)[key], (b as any)[key]);
+      }
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+
+    return sorted;
+  }, [users, queryText, sort]);
+
+  function toggleSort(nextKey: SortKey) {
+    setSort(prev => {
+      if (prev.key !== nextKey) return { key: nextKey, dir: 'asc' };
+      return { key: nextKey, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+    });
+  }
+
+  function SortHeader({ column, label }: { column: SortKey, label: string }) {
+    const active = sort.key === column;
+    const dir = active ? sort.dir : undefined;
+    return (
+      <th
+        aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+        className={`${styles.sortable}`}
+      >
+        <button
+          type="button"
+          onClick={()=>toggleSort(column)}
+          className={styles.sortButton}
+          title={t('common:sort','Sort')!}
+        >
+          <span>{label}</span>
+          <span className={styles.sortIcon} aria-hidden>
+            {active ? (dir === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </button>
+      </th>
+    );
+  }
+
   return (
     <div className={styles.wrapper}>
       {/* Toast */}
       {toast.show && (
-        <div className={[
-          styles.toast,
-          toast.kind==='success'?styles.toastSuccess: toast.kind==='info'?styles.toastInfo:styles.toastError
-        ].join(' ')} role="status" aria-live="polite">
+        <div
+          className={[
+            styles.toast,
+            toast.kind==='success'?styles.toastSuccess: toast.kind==='info'?styles.toastInfo:styles.toastError
+          ].join(' ')}
+          role="status" aria-live="polite"
+        >
           {toast.message}
         </div>
       )}
 
       <div className={styles.actionBar}>
         <h2 className="text-xl font-semibold text-white">{t('users:manage', 'Manage Users')}</h2>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {/* NEW: Search */}
+          <input
+            className={styles.input}
+            style={{ minWidth: 220 }}
+            placeholder={t('common:search','Search')!}
+            value={queryText}
+            onChange={(e)=>setQueryText(e.target.value)}
+          />
+          <button onClick={()=>setQueryText('')} className={styles.btn}>{t('common:clear','Clear')}</button>
+
           <button onClick={downloadTemplate} className={`${styles.btn}`}>{t('common:downloadTemplate','Download template')}</button>
           <button onClick={exportUsers} className={`${styles.btn}`}>{t('common:export','Export')}</button>
           <button onClick={openFilePicker} disabled={busyImport}
@@ -366,14 +414,12 @@ export default function UsersAdmin() {
           value={form.username} onChange={(e)=>setForm(f=>({...f,username:e.target.value}))}/>
         <input className={styles.input} type="password" placeholder={t('users:password','Password')!} autoComplete="new-password"
           value={form.password} onChange={(e)=>setForm(f=>({...f,password:e.target.value}))}/>
-        {/* NEW: birthday */}
         <input className={styles.input} type="date" placeholder={t('users:birthday','Birthday')!}
           value={form.birthday} onChange={(e)=>setForm(f=>({...f,birthday:e.target.value}))}/>
         <select className={styles.select} value={form.role}
           onChange={(e)=>setForm(f=>({...f,role:e.target.value as Role}))}>
           {['admin','teacher','student','kiosk'].map(r=><option key={r} value={r}>{r}</option>)}
         </select>
-        {/* NEW: classGrade (students only; Hebrew values) */}
         <select className={styles.select} value={form.classGrade}
           onChange={(e)=>setForm(f=>({...f,classGrade:e.target.value}))} disabled={form.role!=='student'}>
           {CLASS_GRADE_VALUES.map(val => <option key={val} value={val}>{`כיתה ${val}`}</option>)}
@@ -387,18 +433,17 @@ export default function UsersAdmin() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>{t('users:table.username','Username')}</th>
-              <th>{t('users:table.first','First')}</th>
-              <th>{t('users:table.last','Last')}</th>
-              <th>{t('users:table.role','Role')}</th>
-              {/* NEW columns */}
-              <th>{t('users:birthday','Birthday')}</th>
-              <th>{t('users:classGrade','Class Grade')}</th>
+              <SortHeader column="username"  label={t('users:table.username','Username')} />
+              <SortHeader column="firstName" label={t('users:table.first','First')} />
+              <SortHeader column="lastName"  label={t('users:table.last','Last')} />
+              <SortHeader column="role"      label={t('users:table.role','Role')} />
+              <SortHeader column="birthday"  label={t('users:birthday','Birthday')} />
+              <SortHeader column="classGrade" label={t('users:classGrade','Class Grade')} />
               <th className="w-56">{t('common:actions','Actions')}</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(u=>(
+            {filteredSorted.map(u=>(
               <tr key={u.id}>
                 <td>{u.username}</td>
                 <td>{u.firstName||''}</td>
@@ -414,7 +459,7 @@ export default function UsersAdmin() {
                 </td>
               </tr>
             ))}
-            {!users.length && (
+            {!filteredSorted.length && (
               <tr><td colSpan={7} style={{color:'var(--sb-muted)', padding:'1rem'}}>{t('common:noItems','No items')}</td></tr>
             )}
           </tbody>
@@ -448,14 +493,12 @@ export default function UsersAdmin() {
                   onChange={(e)=>setEdit(prev=>prev.open?{...prev,username:e.target.value}:prev)} />
               </div>
 
-              {/* NEW: birthday */}
               <div>
                 <label className="block text-sm text-neutral-300 mb-1">{t('users:birthday','Birthday')}</label>
                 <input className={styles.input} type="date" value={edit.birthday}
                   onChange={(e)=>setEdit(prev=>prev.open?{...prev,birthday:e.target.value}:prev)} />
               </div>
 
-              {/* Role */}
               <div>
                 <label className="block text-sm text-neutral-300 mb-1">{t('users:role','Role')}</label>
                 <select className={styles.select} value={edit.role}
@@ -464,7 +507,6 @@ export default function UsersAdmin() {
                 </select>
               </div>
 
-              {/* NEW: classGrade (students only; Hebrew values) */}
               <div>
                 <label className="block text-sm text-neutral-300 mb-1">{t('users:classGrade','Class Grade')}</label>
                 <select className={styles.select} value={edit.classGrade}
