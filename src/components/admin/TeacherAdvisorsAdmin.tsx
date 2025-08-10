@@ -28,9 +28,10 @@ type AppUser = {
   createdAt?: any;
 };
 
+type ToastKind = 'success' | 'error' | 'info';
 type Toast =
   | { show: false }
-  | { show: true; kind: 'success' | 'error' | 'info'; message: string };
+  | { show: true; kind: ToastKind; message: string };
 
 const byName = (a?: AppUser, b?: AppUser) =>
   fullName(a).toLowerCase().localeCompare(fullName(b).toLowerCase());
@@ -56,7 +57,7 @@ export default function TeacherAdvisorsAdmin() {
   const [toast, setToast] = useState<Toast>({ show: false });
   const [busy, setBusy] = useState(false);
 
-  const toastMsg = (kind: Toast['kind'], message: string) => {
+  const toastMsg = (kind: ToastKind, message: string) => {
     setToast({ show: true, kind, message });
     setTimeout(() => setToast({ show: false }), 3000);
   };

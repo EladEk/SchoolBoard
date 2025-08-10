@@ -23,7 +23,7 @@ function pad2(n:number){ return n.toString().padStart(2,'0'); }
 function fromMinutes(mins: number){ return `${pad2(Math.floor(mins/60))}:${pad2(mins%60)}`; }
 
 // Accepts: "08:00", 0.3333 (Excel fraction), 45678.3333 (Excel date serial)
-function parseExcelTime(v:any): number | NaN {
+function parseExcelTime(v:any): number {
   if (typeof v === 'number' && isFinite(v)) {
     const frac = v % 1; // if it's a serial date, we only care about the fractional day
     const mins = Math.round(frac * 24 * 60);
@@ -31,14 +31,14 @@ function parseExcelTime(v:any): number | NaN {
   }
   if (typeof v === 'string') {
     const s = v.trim();
-    if (!s) return NaN;
+    if (!s) return Number.NaN;
     const m = s.match(/^(\d{1,2}):(\d{2})$/);
-    if (!m) return NaN;
+    if (!m) return Number.NaN;
     const hh = Number(m[1]); const mm = Number(m[2]);
-    if (hh<0 || hh>23 || mm<0 || mm>59) return NaN;
+    if (hh<0 || hh>23 || mm<0 || mm>59) return Number.NaN;
     return hh*60+mm;
   }
-  return NaN;
+  return Number.NaN;
 }
 
 // Normalize names: trim spaces, collapse whitespace, replace en/em dashes with ASCII hyphen
@@ -90,13 +90,13 @@ export default function LessonsScheduler(){
   // Build quick lookup of slots by (sm,em) and by labels
   const slotByMinutes = useMemo(()=>{
     const m = new Map<string, {sm:number;em:number;start:string;end:string}>();
-    for(const s of SLOTS){ m.set(`${s.sm}-${s.em}`, s as any); }
+    for(const s of SLOTS){ m.set(`${(s as any).sm}-${(s as any).em}`, s as any); }
     return m;
   },[]);
   const slotByLabel = useMemo(()=>{
     const m = new Map<string, {sm:number;em:number;start:string;end:string}>();
     for(const s of SLOTS){
-      m.set(`${s.start}__${s.end}`, s as any);
+      m.set(`${(s as any).start}__${(s as any).end}`, s as any);
     }
     return m;
   },[]);
@@ -202,7 +202,7 @@ export default function LessonsScheduler(){
   // Template generated from SLOTS; includes "class" column
   function downloadTemplate(){
     const demoClass = classes[0]?.name || 'Grade 5 - A';
-    const rows = SLOTS.slice(0, 6).map(s => ({
+    const rows = SLOTS.slice(0, 6).map((s:any) => ({
       class: demoClass,
       day: 0,
       start: s.start,
@@ -483,7 +483,7 @@ export default function LessonsScheduler(){
               </tr>
             </thead>
             <tbody>
-              {slots.map(({start,end,sm,em})=>(
+              {slots.map(({start,end,sm,em}: any)=>(
                 <tr key={start}>
                   <td className="ls-td-time">{start}–{end}</td>
                   {DAYS.map((_,dayIdx)=>{
