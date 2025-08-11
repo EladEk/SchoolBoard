@@ -1,0 +1,99 @@
+/* src/components/admin/LevelsMover.module.css */
+.wrapper {
+  display: grid;
+  gap: 14px;
+}
+
+.header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.select, .input {
+  background-color: #1f1f1f;
+  border: 1px solid #3b3b3b;
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 10px;
+  min-width: 240px;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #d1d5db;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: #1b1c1f;
+  border: 1px solid #2a2b30;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 56vh;
+  overflow: auto;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #141416;
+  border: 1px solid #2a2b30;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.btn, .btnPrimary, .btnDanger, .btnGhost {
+  background: #23252a;
+  border: 1px solid #2a2b30;
+  color: #f2f3f5;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btnPrimary { background: #0ea5e9; color: #081017; border-color: #0a84bf; }
+.btnDanger  { background: #b91c1c; border-color: #991b1b; }
+.btnGhost   { background: transparent; }
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.badge {
+  font-size: 12px;
+  color: #a6a7ab;
+}
+
+.empty {
+  opacity: .7;
+  font-size: 13px;
+  text-align: center;
+  padding: 8px 0;
+}

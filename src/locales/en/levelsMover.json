@@ -1,0 +1,19 @@
+{
+  "selectBase": "Choose a subject with levels",
+  "searchStudents": "Search students",
+  "pickBasePrompt": "Pick a subject with levels from the list",
+  "noGroupsYet": "No level-based lessons yet",
+  "levelPrefix": "Level {{n}}",
+  "noLevel": "No level",
+  "groupsCount": "{{n}} groups",
+  "oneGroup": "One group",
+  "moveAllPrevTitle": "Move the whole group to previous level (smallest group)",
+  "moveAllNextTitle": "Move the whole group to next level (smallest group)",
+  "moveAllPrev": "← Move all",
+  "moveAllNext": "Move all →",
+  "moveTo": "Move to...",
+  "prevLevel": "← To previous level (smallest group)",
+  "nextLevel": "To next level → (smallest group)",
+  "noStudentsInGroup": "No students in this group",
+  "moveAllConfirm": "Move ALL students from this group?"
+}

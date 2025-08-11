@@ -5,14 +5,15 @@ import UsersAdmin from '../components/admin/UsersAdmin';
 import ClassesAdmin from '../components/admin/ClassesAdmin';
 import LessonsAdmin from '../components/admin/LessonsAdmin';
 import LessonsScheduler from '../components/lessons/LessonsScheduler';
-import TeacherAdvisorsAdmin from '../components/admin/TeacherAdvisorsAdmin'; // <— NEW
+import TeacherAdvisorsAdmin from '../components/admin/TeacherAdvisorsAdmin';
+import LevelsMover from '../components/admin/LevelsMover'; // <-- NEW
 import { useTranslation } from 'react-i18next';
 import styles from './AdminDashboard.module.css';
 
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const [active, setActive] = useState<
-    'users' | 'classes' | 'lessons' | 'timetable' | 'advisories'
+    'users' | 'classes' | 'lessons' | 'timetable' | 'advisories' | 'levels'
   >('users');
   const navigate = useNavigate();
 
@@ -25,46 +26,53 @@ export default function AdminDashboard() {
     navigate('/');
   }
 
+  const tabs: Array<{ key: typeof active; label: string }> = [
+    { key: 'users',      label: t('dashboard:tabs.users', 'Users') },
+    { key: 'classes',    label: t('dashboard:tabs.classes', 'Classes') },
+    { key: 'lessons',    label: t('dashboard:tabs.lessons', 'Lessons') },
+    { key: 'timetable',  label: t('dashboard:tabs.timetable', 'Timetable') },
+    { key: 'advisories', label: t('dashboard:tabs.advisories', 'Advisories') },
+    { key: 'levels',     label: t('dashboard:tabs.levels', 'הזזת רמות') }, // <-- NEW
+  ];
+
   return (
     <div className={styles.page}>
       {/* Header / Top Nav */}
       <header className={styles.header}>
         <div className={styles.headerBar}>
           <div className={styles.titleRow}>
-            <h1 className={styles.title}>{t('dashboard:dashboard.title')}</h1>
-            <span className={styles.subtitle}>{t('dashboard:dashboard.subtitle')}</span>
+            <h1 className={styles.title}>{t('dashboard:dashboard.title', 'Admin Dashboard')}</h1>
+            <span className={styles.subtitle}>{t('dashboard:dashboard.subtitle', 'Manage your school')}</span>
           </div>
 
           <div className={styles.rightControls}>
-            {/* Session info */}
             <div className={styles.sessionInfo}>
               <span style={{ fontWeight: 600 }}>{session?.displayName || 'Admin'}</span>
               {session?.role ? (
                 <span className={styles.roleSep}>
-                  {t('dashboard:dashboard.roleSeparator')}{session.role}
+                  {t('dashboard:dashboard.roleSeparator', ' · ')}{session.role}
                 </span>
               ) : null}
             </div>
 
-            {/* Logout */}
             <button onClick={handleLogout} className={styles.logoutBtn}>
-              {t('dashboard:dashboard.logout')}
+              {t('dashboard:dashboard.logout', 'Logout')}
             </button>
           </div>
         </div>
 
         {/* Tabs bar under header */}
         <nav className={styles.tabsBar}>
-          {(['users','classes','lessons','timetable','advisories'] as const).map((key) => (
+          {tabs.map((tab) => (
             <button
-              key={key}
-              onClick={() => setActive(key)}
+              key={tab.key}
+              onClick={() => setActive(tab.key)}
               className={[
                 styles.tabBtn,
-                active === key ? styles.tabBtnActive : ''
+                active === tab.key ? styles.tabBtnActive : ''
               ].join(' ')}
             >
-              {t(`dashboard:tabs.${key}`)}
+              {tab.label}
             </button>
           ))}
         </nav>
@@ -77,7 +85,8 @@ export default function AdminDashboard() {
           {active === 'classes' && <ClassesAdmin />}
           {active === 'lessons' && <LessonsAdmin />}
           {active === 'timetable' && <LessonsScheduler />}
-          {active === 'advisories' && <TeacherAdvisorsAdmin />}{/* NEW */}
+          {active === 'advisories' && <TeacherAdvisorsAdmin />}
+          {active === 'levels' && <LevelsMover />}{/* <-- NEW */}
         </section>
       </main>
     </div>

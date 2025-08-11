@@ -1,0 +1,19 @@
+{
+  "selectBase": "בחר נושא עם רמות",
+  "searchStudents": "חיפוש תלמידים",
+  "pickBasePrompt": "בחרו נושא בעל רמות מהרשימה",
+  "noGroupsYet": "אין שיעורים עם רמות כרגע",
+  "levelPrefix": "רמה {{n}}",
+  "noLevel": "ללא רמה",
+  "groupsCount": "{{n}} קבוצות",
+  "oneGroup": "קבוצה אחת",
+  "moveAllPrevTitle": "העבר את כל הקבוצה לרמה הקודמת (לקבוצה הקטנה ביותר)",
+  "moveAllNextTitle": "העבר את כל הקבוצה לרמה הבאה (לקבוצה הקטנה ביותר)",
+  "moveAllPrev": "הורד את כל הקבוצה רמה",
+  "moveAllNext": "העלה את כל הקבוצה רמה",
+  "moveTo": "העבר ל...",
+  "prevLevel": "לרמה הקודמת (לקבוצה הקטנה ביותר)",
+  "nextLevel": "לרמה הבאה (לקבוצה הקטנה ביותר)",
+  "noStudentsInGroup": "אין תלמידים בקבוצה זו",
+  "moveAllConfirm": "להעביר את כל התלמידים בקבוצה הזו?"
+}

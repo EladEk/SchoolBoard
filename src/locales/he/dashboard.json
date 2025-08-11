@@ -4,7 +4,8 @@
     "classes": "כיתות",
     "lessons": "שיעורים",
     "timetable": "מערכת שעות",
-    "advisories" : "חונכות"
+    "advisories" : "חונכות",
+    "levels": "הזזת רמות"
   },
   "dashboard": {
     "title": "לוח ניהול",

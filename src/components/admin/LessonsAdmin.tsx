@@ -1,6 +1,9 @@
+// src/components/admin/LessonsAdmin.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -48,6 +51,9 @@ type LessonItem = {
   studentFirstName?: string | null;
   studentLastName?: string | null;
 
+  // members
+  studentsUserIds?: string[];
+
   createdAt?: any;
 };
 
@@ -85,6 +91,17 @@ function showToastFn(
   setTimeout(() => setToast({ show: false }), 2600);
 }
 
+// Subject detection for filter rule
+type SubjectKey = 'hebrew' | 'math' | 'english' | null;
+function subjectOf(name: string): SubjectKey {
+  const s = (name || '').toLowerCase().trim();
+  if (!s) return null;
+  if (s.includes('עברית') || s.startsWith('hebrew')) return 'hebrew';
+  if (s.includes('חשבון') || s.startsWith('math')) return 'math';
+  if (s.includes('אנגלית') || s.startsWith('english')) return 'english';
+  return null;
+}
+
 // ---------------- Component ----------------
 export default function LessonsAdmin() {
   const { t } = useTranslation();
@@ -111,6 +128,12 @@ export default function LessonsAdmin() {
   // Excel import/export
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busyImport, setBusyImport] = useState(false);
+
+  // Manage students modal
+  const [manageOpen, setManageOpen] = useState(false);
+  const [manageLessonId, setManageLessonId] = useState<string>('');
+  const [searchStudent, setSearchStudent] = useState('');
+  const [allowDuplicatesInSubject, setAllowDuplicatesInSubject] = useState(false);
 
   // ---------- Load teachers / students / lessons ----------
   useEffect(() => {
@@ -177,6 +200,7 @@ export default function LessonsAdmin() {
         name,
         isStudentTeacher,
         createdAt: serverTimestamp(),
+        studentsUserIds: [],
       };
 
       if (isStudentTeacher) {
@@ -294,10 +318,21 @@ export default function LessonsAdmin() {
     }
   }
 
-  // ---------- Delete ----------
+  // ---------- Delete (with confirmation) ----------
   async function removeLesson(id: string) {
-    try { await deleteDoc(doc(db, 'lessons', id)); showToastFn(setToast, 'success', t('lessons:toasts.deleted')); }
-    catch (err: any) { showToastFn(setToast, 'error', t('lessons:toasts.deleteFail', { msg: err?.message || 'unknown' })); }
+    const lessonName = lessons.find(l => l.id === id)?.name || '';
+    const confirmMsg =
+      t('lessons:confirmDelete', { name: lessonName }) ||
+      `Are you sure you want to delete "${lessonName}"?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await deleteDoc(doc(db, 'lessons', id));
+      showToastFn(setToast, 'success', t('lessons:toasts.deleted'));
+    } catch (err: any) {
+      showToastFn(setToast, 'error', t('lessons:toasts.deleteFail', { msg: err?.message || 'unknown' }));
+    }
   }
 
   // ---------- Excel: Export / Template / Import ----------
@@ -305,7 +340,7 @@ export default function LessonsAdmin() {
 
   function downloadTemplate() {
     const rows = [
-      { name: 'Math', isStudentTeacher: false, teacherUsername: 'teacher.alex', studentUsername: '' },
+      { name: 'עברית רמה 1', isStudentTeacher: false, teacherUsername: 'teacher.alex', studentUsername: '' },
       { name: '1:1 Neta & Alex', isStudentTeacher: true, teacherUsername: '', studentUsername: 'student.neta' },
     ];
     const ws = XLSX.utils.json_to_sheet(rows, {
@@ -409,10 +444,12 @@ export default function LessonsAdmin() {
 
         const existing = existingMap.get(name);
         if (existing) {
+          // keep existing memberships if any
+          if (existing.studentsUserIds) (payload as any).studentsUserIds = existing.studentsUserIds;
           await updateDoc(doc(db, 'lessons', existing.id), payload);
           updated++;
         } else {
-          await addDoc(collection(db, 'lessons'), { ...payload, createdAt: serverTimestamp() });
+          await addDoc(collection(db, 'lessons'), { ...payload, createdAt: serverTimestamp(), studentsUserIds: [] });
           created++;
         }
       }
@@ -424,6 +461,81 @@ export default function LessonsAdmin() {
       showToastFn(setToast, 'error', t('lessons:toasts.importFail', { msg: err?.message || 'unknown' }));
     } finally {
       setBusyImport(false);
+    }
+  }
+
+  // ---------- Manage students logic ----------
+  const manageLesson = useMemo(() => lessons.find(l => l.id === manageLessonId) || null, [lessons, manageLessonId]);
+  const manageLessonSubject = useMemo<SubjectKey>(() => subjectOf(manageLesson?.name || ''), [manageLesson]);
+
+  // Students already in ANY lesson of the same subject (hebrew/math/english)
+  const subjectTakenSet = useMemo<Set<string>>(() => {
+    if (!manageLessonSubject) return new Set();
+    const taken = new Set<string>();
+    for (const l of lessons) {
+      if (l.id === manageLessonId) continue;
+      if (subjectOf(l.name || '') !== manageLessonSubject) continue;
+      for (const sid of l.studentsUserIds || []) taken.add(sid);
+    }
+    return taken;
+  }, [lessons, manageLessonId, manageLessonSubject]);
+
+  const assignedIds = useMemo(() => new Set(manageLesson?.studentsUserIds || []), [manageLesson]);
+  const assignedStudents = useMemo(
+    () => students.filter(s => assignedIds.has(s.id)),
+    [students, assignedIds]
+  );
+
+  const poolStudents = useMemo(() => {
+    const q = searchStudent.trim().toLowerCase();
+    let list = students.filter(s => !assignedIds.has(s.id)); // not yet in this lesson
+    if (!allowDuplicatesInSubject && manageLessonSubject) {
+      list = list.filter(s => !subjectTakenSet.has(s.id)); // hide those already in same subject
+    }
+    if (q) {
+      list = list.filter(s =>
+        [labelFromUser(s), s.username]
+          .filter(Boolean)
+          .some(v => (v as string).toLowerCase().includes(q))
+      );
+    }
+    list.sort((a, b) => (labelFromUser(a) || '').localeCompare(labelFromUser(b) || ''));
+    return list;
+  }, [students, assignedIds, allowDuplicatesInSubject, manageLessonSubject, subjectTakenSet, searchStudent]);
+
+  async function addStudentToLesson(studentId: string) {
+    if (!manageLesson) return;
+    try {
+      await updateDoc(doc(db, 'lessons', manageLesson.id), { studentsUserIds: arrayUnion(studentId) });
+    } catch (e: any) {
+      showToastFn(setToast, 'error', e?.message || 'Failed to add student');
+    }
+  }
+  async function removeStudentFromLesson(studentId: string) {
+    if (!manageLesson) return;
+    try {
+      await updateDoc(doc(db, 'lessons', manageLesson.id), { studentsUserIds: arrayRemove(studentId) });
+    } catch (e: any) {
+      showToastFn(setToast, 'error', e?.message || 'Failed to remove student');
+    }
+  }
+  async function bulkAddPool() {
+    if (!manageLesson || !poolStudents.length) return;
+    try {
+      const ref = doc(db, 'lessons', manageLesson.id);
+      await updateDoc(ref, { studentsUserIds: arrayUnion(...poolStudents.map(s => s.id)) });
+    } catch (e:any) {
+      showToastFn(setToast, 'error', e?.message || 'Failed to add all');
+    }
+  }
+  async function bulkRemoveAll() {
+    if (!manageLesson || !assignedStudents.length) return;
+    if (!window.confirm(t('common:confirm','Are you sure?')!)) return;
+    try {
+      const ref = doc(db, 'lessons', manageLesson.id);
+      await updateDoc(ref, { studentsUserIds: arrayRemove(...assignedStudents.map(s => s.id)) });
+    } catch (e:any) {
+      showToastFn(setToast, 'error', e?.message || 'Failed to remove all');
     }
   }
 
@@ -460,15 +572,15 @@ export default function LessonsAdmin() {
           >
             {busyImport ? t('lessons:adding') : t('common:import')}
           </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          onChange={handleImportFile}
-          className={styles.fileInputHidden}
-          aria-hidden="true"
-          tabIndex={-1}
-        />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleImportFile}
+            className={styles.fileInputHidden}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
         </div>
       </div>
 
@@ -558,7 +670,7 @@ export default function LessonsAdmin() {
             <tr>
               <th>{t('lessons:table.name')}</th>
               <th>{t('lessons:table.teacher')}</th>
-              <th className="w-44">{t('common:actions')}</th>
+              <th className="w-72">{t('common:actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -574,6 +686,12 @@ export default function LessonsAdmin() {
                     <div className="flex gap-2">
                       <button onClick={() => openEdit(l)} className={styles.btn}>{t('common:edit')}</button>
                       <button onClick={() => removeLesson(l.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete')}</button>
+                      <button
+                        onClick={() => { setManageLessonId(l.id); setManageOpen(true); setSearchStudent(''); }}
+                        className={styles.btn}
+                      >
+                        {t('lessons:manageStudents','Manage students')}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -594,9 +712,7 @@ export default function LessonsAdmin() {
       {edit.open && (
         <div
           className={styles.modalScrim}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeEdit();
-          }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeEdit(); }}
         >
           <div className={styles.modalCard}>
             <div className="flex items-center justify-between mb-3">
@@ -610,9 +726,7 @@ export default function LessonsAdmin() {
                 <input
                   type="text"
                   value={edit.name}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))
-                  }
+                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))}
                   className={styles.input}
                 />
               </div>
@@ -643,13 +757,8 @@ export default function LessonsAdmin() {
                 <select
                   disabled={edit.isStudentTeacher}
                   value={edit.teacherUsername}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, teacherUsername: e.target.value } : prev))
-                  }
-                  className={[
-                    styles.select,
-                    edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
-                  ].join(' ')}
+                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, teacherUsername: e.target.value } : prev))}
+                  className={[styles.select, edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
                 >
                   <option value="">{t('lessons:selectTeacher')}</option>
                   {teachers.map((t) => (
@@ -666,13 +775,8 @@ export default function LessonsAdmin() {
                 <select
                   disabled={!edit.isStudentTeacher}
                   value={edit.studentUsername}
-                  onChange={(e) =>
-                    setEdit((prev) => (prev.open ? { ...prev, studentUsername: e.target.value } : prev))
-                  }
-                  className={[
-                    styles.select,
-                    !edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
-                  ].join(' ')}
+                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, studentUsername: e.target.value } : prev))}
+                  className={[styles.select, !edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
                 >
                   <option value="">{t('lessons:selectStudent')}</option>
                   {students.map((s) => (
@@ -694,6 +798,115 @@ export default function LessonsAdmin() {
                 {saving ? t('common:saving') : t('common:saveChanges')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Students modal */}
+      {manageOpen && manageLesson && (
+        <div
+          className={styles.modalScrim}
+          onClick={(e)=>{ if (e.target === e.currentTarget) { setManageOpen(false); } }}
+        >
+          <div className={styles.modalCard}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-white">
+                {t('lessons:manageStudents','Manage students')} — {manageLesson.name}
+              </h3>
+              <button className={styles.btn} onClick={()=>setManageOpen(false)} aria-label={t('common:close','Close')!}>✕</button>
+            </div>
+
+            {/* Controls */}
+            <div className="flex flex-col md:flex-row md:items-center gap-2 mb-3">
+              <input
+                className={styles.input}
+                placeholder={t('common:search','Search')!}
+                value={searchStudent}
+                onChange={(e)=>setSearchStudent(e.target.value)}
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={allowDuplicatesInSubject}
+                  onChange={(e)=>setAllowDuplicatesInSubject(e.target.checked)}
+                />
+                {manageLessonSubject
+                  ? t('lessons:allowDuplicatesInSubject','Allow students already in this subject’s groups')
+                  : t('lessons:noSubjectFilter','No subject filter (subject not detected)')}
+              </label>
+              <div className="ml-auto text-sm opacity-80">
+                {t('lessons:counts','Pool: {{p}} · Assigned: {{a}}',{ p: poolStudents.length, a: (manageLesson.studentsUserIds||[]).length }) as any}
+              </div>
+            </div>
+
+            {/* One panel with two columns → added appears next to pool */}
+            <div className={styles.panel} style={{ padding: 12 }}>
+              <div className="flex items-center justify-between mb-2">
+                <strong>{t('lessons:studentsPool','Students')}</strong>
+                <div className="flex gap-2">
+                  <button
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    onClick={bulkAddPool}
+                    disabled={!poolStudents.length}
+                  >
+                    {t('lessons:addAll','Add all')}
+                  </button>
+                  <button
+                    className={styles.btn}
+                    onClick={bulkRemoveAll}
+                    disabled={!assignedStudents.length}
+                  >
+                    {t('lessons:removeAll','Remove all')}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12,
+                  maxHeight: '56vh',
+                  overflow: 'auto',
+                }}
+              >
+                {/* LEFT: Pool */}
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {poolStudents.map(s => (
+                    <div key={s.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{labelFromUser(s)}</div>
+                        {(!allowDuplicatesInSubject && manageLessonSubject && subjectTakenSet.has(s.id)) && (
+                          <div style={{ fontSize:12, opacity:.75 }}>{t('lessons:alreadyInSubject','Already in this subject')}</div>
+                        )}
+                      </div>
+                      <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={()=>addStudentToLesson(s.id)}>
+                        {t('common:add','Add')}
+                      </button>
+                    </div>
+                  ))}
+                  {!poolStudents.length && (
+                    <div style={{ opacity:.7, padding:'6px 0' }}>{t('common:noItems','No items')}</div>
+                  )}
+                </div>
+
+                {/* RIGHT: Assigned */}
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {assignedStudents.map(s => (
+                    <div key={s.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                      <div><div style={{ fontWeight: 600 }}>{labelFromUser(s)}</div></div>
+                      <button className={`${styles.btn} ${styles.btnDanger}`} onClick={()=>removeStudentFromLesson(s.id)}>
+                        {t('common:remove','Remove')}
+                      </button>
+                    </div>
+                  ))}
+                  {!assignedStudents.length && (
+                    <div style={{ opacity:.7, padding:'6px 0' }}>{t('common:noItems','No items')}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

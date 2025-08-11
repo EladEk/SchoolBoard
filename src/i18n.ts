@@ -30,6 +30,10 @@ import advisories_he from './locales/he/advisories.json';
 import studentPlans_en from './locales/en/studentPlans.json';
 import studentPlans_he from './locales/he/studentPlans.json';
 
+// ---- levelsMover namespace (NEW) ----
+import levelsMover_en from './locales/en/levelsMover.json';
+import levelsMover_he from './locales/he/levelsMover.json';
+
 const ns: string[] = [
   'common',
   'timetable',
@@ -39,7 +43,8 @@ const ns: string[] = [
   'lessons',
   'dashboard',
   'advisories',
-  'studentPlans'
+  'studentPlans',
+  'levelsMover' // NEW
 ];
 
 i18n
@@ -59,7 +64,8 @@ i18n
         lessons: lessons_en,
         dashboard: dashboard_en,
         advisories: advisories_en,
-        studentPlans: studentPlans_en
+        studentPlans: studentPlans_en,
+        levelsMover: levelsMover_en // NEW
       },
       he: {
         common: common_he,
@@ -70,12 +76,13 @@ i18n
         lessons: lessons_he,
         dashboard: dashboard_he,
         advisories: advisories_he,
-        studentPlans: studentPlans_he
-      },
+        studentPlans: studentPlans_he,
+        levelsMover: levelsMover_he // NEW
+      }
     },
     interpolation: { escapeValue: false },
     debug: false,
-    returnEmptyString: false,
+    returnEmptyString: false
   })
   .then(() => {
     if (typeof document !== 'undefined') {
