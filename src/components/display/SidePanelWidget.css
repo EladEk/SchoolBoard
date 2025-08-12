@@ -1,232 +1,297 @@
 /* src/components/display/SidePanelWidget.css */
-/* ===== FOX-KIDS / PLAYGROUND THEME (Rainbow+) ===== */
+/* ===== FOX-KIDS / PLAYGROUND THEME (Dense + Fades + No Wasted Space) ===== */
 
 .now-panel{
-  --sp-yellow:#FFD83B;
-  --sp-pink:#FF5FB7;
-  --sp-blue:#2BD1FF;
-  --sp-purple:#7D5CFF;
-  --sp-green:#28D17C;
-  --sp-orange:#FF8A00;
+  --sp-yellow:#FFD83B; --sp-pink:#FF5FB7; --sp-blue:#2BD1FF;
+  --sp-purple:#7D5CFF; --sp-green:#28D17C; --sp-orange:#FF8A00;
 
-  /* extended rainbow for items */
-  --c1:#FF6B6B;   /* coral */
-  --c2:#FF8A00;   /* orange */
-  --c3:#FFD83B;   /* yellow */
-  --c4:#B2FF59;   /* lime */
-  --c5:#28D17C;   /* green */
-  --c6:#00C2B8;   /* teal */
-  --c7:#2BD1FF;   /* sky */
-  --c8:#4F7BFF;   /* blue */
-  --c9:#7D5CFF;   /* indigo */
-  --c10:#B066FF;  /* violet */
-  --c11:#FF5FB7;  /* magenta */
-  --c12:#FF8ACF;  /* pink */
+  --c1:#FF6B6B;  --c2:#FF8A00;  --c3:#FFD83B;  --c4:#B2FF59;
+  --c5:#28D17C;  --c6:#00C2B8;  --c7:#2BD1FF;  --c8:#4F7BFF;
+  --c9:#7D5CFF;  --c10:#B066FF; --c11:#FF5FB7; --c12:#FF8ACF;
 
-  --ink:#0b0b0b;
-  --card:#ffffff;
+  --ink:#0b0b0b; --card:#ffffff;
 
   background: linear-gradient(90deg,#ffecb3 0%, #b3e5fc 33%, #ffc6ff 66%, #b2ffb2 100%);
-  border-radius: 24px;
+  border-radius: 20px;
   border: 3px solid rgba(255,255,255,0.9);
   box-shadow: 0 10px 24px rgba(0,0,0,.18), inset 0 0 0 6px rgba(255,255,255,.55);
-  padding: 12px;
+
+  height: 100%;
+  min-height: 0;
   display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 10px;
+  grid-template-rows: auto 1fr;
+  gap: 6px;                /* was 8px */
+  padding: 8px;            /* was 10px */
 
   background-image:
-    radial-gradient(circle at 12% 20%, rgba(255,255,255,.35) 2px, transparent 3px),
-    radial-gradient(circle at 80% 70%, rgba(255,255,255,.35) 2px, transparent 3px);
-  background-size: auto, auto, 100% 100%;
+    radial-gradient(circle at 12% 20%, rgba(255,255,255,.24) 2px, transparent 3px),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,.24) 2px, transparent 3px);
 }
 
-/* Title */
 .now-title{
-  direction: rtl;
-  text-align: center;
-  font-size: clamp(20px, 1.8vw, 26px);
-  font-weight: 900;
-  color: var(--ink);
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 16px;
+  padding: 6px 8px;        /* tighter */
+  border-radius: 14px;
   border: 2px solid rgba(0,0,0,.06);
   background: linear-gradient(135deg, #fff 0%, #ffeef9 50%, #fff 100%);
+  color: var(--ink);
+  font-weight: 900;
+  font-size: clamp(17px, 1.35vw, 22px);
+  text-align: center;
   text-shadow: 0 1px 0 rgba(255,255,255,.8);
-  box-shadow: 0 3px 0 rgba(0,0,0,.06);
 }
-.now-title::before{ content: "✨ "; }
 
-/* List */
+/* ===== List area ===== */
 .now-list{
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
   display: grid;
-  gap: 10px;
+  gap: 6px;                /* was 8px */
+  padding-right: 2px;
 }
 
-/* Each item */
+/* ===== Cards ===== */
 .now-item{
   position: relative;
-  border-radius: 16px;
-  border: 3px solid rgba(0,0,0,.08);
-  /* background tint varies via --tint (set below per row) */
+  border-radius: 14px;
+  border: 2px solid rgba(0,0,0,.09);
   background: linear-gradient(180deg, #ffffff, var(--tint, #f6fff8));
   color: var(--ink);
-  padding: 10px 12px;
+  padding: 6px 8px;        /* was 8px 10px */
   font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 4px 0 rgba(0,0,0,.08);
-  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  box-shadow: 0 3px 0 rgba(0,0,0,.08);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease, opacity 300ms ease;
   overflow: hidden;
 }
 .now-item::before{
   content: "";
-  position: absolute;
-  inset-inline-start: 0; top: 0; bottom: 0;
-  width: 10px;
-  /* stripe gradient uses --stripeA/--stripeB set per row */
+  position: absolute; inset-inline-start: 0; top: 0; bottom: 0;
+  width: 8px;
   background: linear-gradient(180deg, var(--stripeA, var(--sp-blue)), var(--stripeB, var(--sp-green)));
-  border-top-left-radius: 14px;
-  border-bottom-left-radius: 14px;
+  border-top-left-radius: 12px; border-bottom-left-radius: 12px;
 }
-.now-item:hover{
-  transform: translateY(-2px) rotate(-.2deg);
-  box-shadow: 0 8px 0 rgba(0,0,0,.08);
-}
+.now-item:hover{ transform: translateY(-1px); }
 
-/* Spotlight */
 .now-item.spot{
-  outline: 4px solid var(--sp-pink);
+  outline: 3px solid var(--sp-pink);
   outline-offset: -2px;
   filter: drop-shadow(0 6px 12px rgba(255,95,183,.35));
   animation: spot-pop .9s ease-in-out infinite alternate;
 }
-@keyframes spot-pop{
-  from{ transform: translateY(0) scale(1); }
-  to  { transform: translateY(-2px) scale(1.02); }
+@keyframes spot-pop{ from{ transform: translateY(0) } to{ transform: translateY(-2px) } }
+
+/* ===== Header inside card ===== */
+.now-item-head{ display: grid; gap: 4px; } /* was 6px */
+
+.now-lesson--title{
+  margin: 0 0 2px;         /* was 4px */
+  font-size: clamp(16px, 1.15vw, 21px);
+  color: #14223a;
+  line-height: 1.08;
 }
 
-/* Text */
-.now-lesson--title{
-  font-size: clamp(18px, 1.4vw, 24px);
-  margin: 0 0 6px;
-  color: #14223a;
+/* class chip | location chip | caret */
+.now-classline{
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  column-gap: 6px;         /* was 8px */
+  margin: 0;
 }
+
 .now-class--subtitle{
   display: inline-block;
+  min-width: 0;
   max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 
-  font-size: clamp(16px, 1.2vw, 20px);
+  font-size: clamp(13px, 1vw, 16px); /* smaller */
   color: #121212;
-  /* chip color varies via --chip set below */
   background: var(--chip, #FFF3B0);
   border: 2px solid rgba(0,0,0,.06);
-  padding: 4px 10px;
+  padding: 2px 8px;        /* tighter */
   text-align: center;
   font-weight: 900;
   border-radius: 999px;
   box-shadow: 0 2px 0 rgba(0,0,0,.08);
 }
 
-/* Details card */
-.now-details{
-  border: 3px solid rgba(0,0,0,.08);
-  border-radius: 18px;
-  background: var(--card);
-  color: var(--ink);
-  padding: 12px;
-  box-shadow: 0 8px 18px rgba(0,0,0,.12);
-}
-.now-lesson--details{
+/* Location chip */
+.loc-chip{
+  white-space: nowrap;
   font-weight: 900;
-  margin: 0 0 6px;
-  color: #21325b;
-  font-size: clamp(18px, 1.4vw, 24px);
-}
-.now-class--details{
-  color:#101010;
-  background: linear-gradient(135deg, #e3f7ff, #ffffff);
-  border: 2px solid rgba(0,0,0,.06);
-  margin: 0 0 10px;
-  padding: 6px 10px;
-  text-align: center;
-  font-weight: 900;
-  border-radius: 12px;
-  font-size: clamp(16px, 1.2vw, 20px);
-}
-
-/* Meta rows */
-.now-meta{
-  display: grid;
-  gap: 8px;
-}
-.now-meta > div{
-  background: #F4FBF9;
-  border: 2px solid rgba(0,0,0,.06);
+  font-size: 12px;         /* smaller */
   color: #0b0b0b;
-  padding: 8px 10px;
-  font-size: 15px !important;
-  line-height: 1.32;
-  border-radius: 12px;
+  background: #fff;
+  border: 2px solid rgba(0,0,0,.08);
+  border-radius: 999px;
+  padding: 2px 8px;        /* tighter */
+  box-shadow: 0 2px 0 rgba(0,0,0,.06);
 }
 
-/* Students pills */
-.now-students{
-  margin-top: 8px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px 10px;
+/* Caret */
+.caret{
+  margin-inline-start: auto;
   font-weight: 900;
-  font-size: 15px;
+  transform: rotate(0deg);
+  transition: transform .25s ease;
+  opacity: .8;
 }
-.now-students > div{
+.now-item.expanded .caret{ transform: rotate(180deg); }
+
+/* ===== Details (collapsible) ===== */
+.now-item-details{
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height .35s ease, opacity .28s ease, margin-top .28s ease;
+  padding-inline: 2px;
+}
+.now-item.expanded .now-item-details{
+  opacity: 1;
+  max-height: 52vh;        /* give more room to students when needed */
+  margin-top: 4px;         /* was 6/8px */
+  margin-bottom: 0;
+  padding-bottom: 2px;
+}
+
+/* Meta rows (teacher + label) */
+.now-meta-row{
+  font-weight: 900;
+  color: #21325b;
+  margin: 0 0 4px 0;       /* tighter */
+}
+
+/* Teacher row (compact chip-like) */
+.now-teacher{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 2px solid rgba(0,0,0,.06);
+  border-radius: 10px;
+  padding: 4px 6px;        /* tighter */
+  margin: 0 0 4px 0;       /* was 6px */
+  color: #10223a;
+  font-size: 13px;
+}
+.now-teacher strong{
+  font-weight: 900;
+  color: #21325b;
+}
+
+/* Hide the separate "Students:" label to reclaim space */
+.now-item-details .now-meta-row:not(.now-teacher){
+  display: none;
+}
+
+/* Students list (dense + taller area, wraps names) */
+.now-students.inner{
+  max-height: 48vh;        /* was 28vh */
+  overflow: auto;
+  overscroll-behavior: contain;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 4px 6px;            /* denser grid */
+  font-weight: 900;
+  font-size: 13px;         /* smaller */
+}
+.now-students.inner > div{
   background: #ffffff;
   border: 2px solid rgba(0,0,0,.06);
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 4px 6px;        /* tighter */
   color: #0c0c0c;
   text-align: center;
-  box-shadow: 0 2px 0 rgba(0,0,0,.08);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-@media (min-width: 1400px){
-  .now-students{ grid-template-columns: repeat(3, 1fr); }
+  box-shadow: 0 2px 0 rgba(0,0,0,.06);
+
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.1;        /* tighter lines */
+  max-height: 2.6em;       /* ~2 lines tightly */
 }
 
-/* Muted helper */
+/* ===== Rainbow accents per-row ===== */
+.now-item:nth-child(12n+1){  --stripeA: var(--c1);  --stripeB:#FFA6A6; --tint:#FFF3F3; --chip:#FFE1E8; }
+.now-item:nth-child(12n+2){  --stripeA: var(--c2);  --stripeB:#FFC380; --tint:#FFF7EC; --chip:#FFE6CC; }
+.now-item:nth-child(12n+3){  --stripeA: var(--c3);  --stripeB:#FFE88A; --tint:#FFFBE3; --chip:#FFF3B0; }
+.now-item:nth-child(12n+4){  --stripeA: var(--c4);  --stripeB:#D9FF9A; --tint:#F7FFEB; --chip:#E7FFCD; }
+.now-item:nth-child(12n+5){  --stripeA: var(--c5);  --stripeB:#9FF7C5; --tint:#EEFFF7; --chip:#D7FFE9; }
+.now-item:nth-child(12n+6){  --stripeA: var(--c6);  --stripeB:#9AF2E9; --tint:#ECFFFE; --chip:#D6FCF7; }
+.now-item:nth-child(12n+7){  --stripeA: var(--c7);  --stripeB:#B8F0FF; --tint:#EEFBFF; --chip:#E1F8FF; }
+.now-item:nth-child(12n+8){  --stripeA: var(--c8);  --stripeB:#AFC4FF; --tint:#EEF2FF; --chip:#DDE5FF; }
+.now-item:nth-child(12n+9){  --stripeA: var(--c9);  --stripeB:#C7B8FF; --tint:#F3EFFF; --chip:#E9E1FF; }
+.now-item:nth-child(12n+10){ --stripeA: var(--c10); --stripeB:#D8B8FF; --tint:#F9EFFF; --chip:#F0E3FF; }
+.now-item:nth-child(12n+11){ --stripeA: var(--c11); --stripeB:#FFB6DE; --tint:#FFF0FA; --chip:#FFE0F1; }
+.now-item:nth-child(12n+12){ --stripeA: var(--c12); --stripeB:#FFC7EB; --tint:#FFF2FA; --chip:#FFE6F5; }
+
+/* ===== Utilities ===== */
 .muted{ color: #4e5565; opacity: .9; }
 
-/* Bigger line-height to match BigTable theme */
 .now-panel .now-lesson--title,
-.now-panel .now-class--subtitle,
-.now-panel .now-lesson--details,
-.now-panel .now-class--details{
-  line-height: 1.05 !important;
-  max-height: 1.35em !important;
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
+.now-panel .now-class--subtitle{
+  line-height: 1.04 !important;    /* tighter */
+  max-height: 1.28em !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 
-/* ---------- RAINBOW PER-ROW COLORS ---------- */
-/* Each item row gets its own color stripe + soft tint + matching chip color */
-.now-item:nth-child(12n+1){  --stripeA: var(--c1);  --stripeB: #FFA6A6; --tint: #FFF3F3; --chip:#FFE1E8; }
-.now-item:nth-child(12n+2){  --stripeA: var(--c2);  --stripeB: #FFC380; --tint: #FFF7EC; --chip:#FFE6CC; }
-.now-item:nth-child(12n+3){  --stripeA: var(--c3);  --stripeB: #FFE88A; --tint: #FFFBE3; --chip:#FFF3B0; }
-.now-item:nth-child(12n+4){  --stripeA: var(--c4);  --stripeB: #D9FF9A; --tint: #F7FFEB; --chip:#E7FFCD; }
-.now-item:nth-child(12n+5){  --stripeA: var(--c5);  --stripeB: #9FF7C5; --tint: #EEFFF7; --chip:#D7FFE9; }
-.now-item:nth-child(12n+6){  --stripeA: var(--c6);  --stripeB: #9AF2E9; --tint: #ECFFFE; --chip:#D6FCF7; }
-.now-item:nth-child(12n+7){  --stripeA: var(--c7);  --stripeB: #B8F0FF; --tint: #EEFBFF; --chip:#E1F8FF; }
-.now-item:nth-child(12n+8){  --stripeA: var(--c8);  --stripeB: #AFC4FF; --tint: #EEF2FF; --chip:#DDE5FF; }
-.now-item:nth-child(12n+9){  --stripeA: var(--c9);  --stripeB: #C7B8FF; --tint: #F3EFFF; --chip:#E9E1FF; }
-.now-item:nth-child(12n+10){ --stripeA: var(--c10); --stripeB: #D8B8FF; --tint: #F9EFFF; --chip:#F0E3FF; }
-.now-item:nth-child(12n+11){ --stripeA: var(--c11); --stripeB: #FFB6DE; --tint: #FFF0FA; --chip:#FFE0F1; }
-.now-item:nth-child(12n+12){ --stripeA: var(--c12); --stripeB: #FFC7EB; --tint: #FFF2FA; --chip:#FFE6F5; }
+/* Large screens: pack more student columns */
+@media (min-width: 1400px){
+  .now-students.inner{
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
 
-/* Students pills rainbow (cycles independently) */
-.now-students > div:nth-child(6n+1){ background:#FFF3F3; }
-.now-students > div:nth-child(6n+2){ background:#FFF7EC; }
-.now-students > div:nth-child(6n+3){ background:#F7FFEB; }
-.now-students > div:nth-child(6n+4){ background:#EEFFF7; }
-.now-students > div:nth-child(6n+5){ background:#ECFFFE; }
-.now-students > div:nth-child(6n+6){ background:#EEF2FF; }
+/* ===== Compact closed cards ===== */
+.now-item:not(.expanded){
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.now-item:not(.expanded) .now-item-head{ gap: 4px; }
+.now-item:not(.expanded) .now-lesson--title{ margin: 0; line-height: 1.04; }
+
+.now-item:not(.expanded) .now-class--subtitle{
+  padding: 2px 8px;
+  font-size: clamp(13px, 1vw, 16px);
+}
+.now-item:not(.expanded) .loc-chip{
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* prevent wrapping that makes cards taller */
+.now-item:not(.expanded) .now-class--subtitle,
+.now-item:not(.expanded) .loc-chip{
+  line-height: 1.0;
+  max-height: 1.3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+
+/* details contribute ZERO height when closed */
+.now-item:not(.expanded) .now-item-details{
+  display: none !important;
+  max-height: 0 !important;
+  opacity: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ===== Fade in/out for card rotation ===== */
+.now-item.fade-out{
+  opacity: 0;
+  transform: translateY(4px) scale(.98);
+}
+.now-item.fade-enter{
+  animation: now-fade-in 300ms ease forwards;
+}
+@keyframes now-fade-in{
+  from{ opacity: 0; transform: translateY(4px) scale(.98); }
+  to  { opacity: 1; transform: translateY(0) scale(1); }
+}
