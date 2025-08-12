@@ -1,0 +1,27 @@
+/* src/components/display/ClockWidget.css */
+
+.clock-widget {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(3rem, 6vw, 6rem);
+  font-weight: 900;
+  font-family: 'Comic Sans MS', 'Fredoka One', cursive;
+  color: #ffffff;
+  background: linear-gradient(135deg, #40f09e, rgb(234, 122, 183));
+  padding: 12px 24px;
+  border-radius: 20px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+  border: 3px solid rgba(255,255,255,0.8);
+}
+
+/* Blinking colon between hours and minutes */
+.clock-widget .blink-colon {
+  animation: blink 1s steps(1) infinite;
+  color: #ffd83b;
+  padding: 0 0.2em;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}

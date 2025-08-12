@@ -30,9 +30,13 @@ import advisories_he from './locales/he/advisories.json';
 import studentPlans_en from './locales/en/studentPlans.json';
 import studentPlans_he from './locales/he/studentPlans.json';
 
-// ---- levelsMover namespace (NEW) ----
+// ---- levelsMover namespace ----
 import levelsMover_en from './locales/en/levelsMover.json';
 import levelsMover_he from './locales/he/levelsMover.json';
+
+// ---- display namespace (NEW) ----
+import display_en from './locales/en/display.json';
+import display_he from './locales/he/display.json';
 
 const ns: string[] = [
   'common',
@@ -44,7 +48,8 @@ const ns: string[] = [
   'dashboard',
   'advisories',
   'studentPlans',
-  'levelsMover' // NEW
+  'levelsMover',
+  'display' // NEW
 ];
 
 i18n
@@ -65,7 +70,8 @@ i18n
         dashboard: dashboard_en,
         advisories: advisories_en,
         studentPlans: studentPlans_en,
-        levelsMover: levelsMover_en // NEW
+        levelsMover: levelsMover_en,
+        display: display_en // NEW
       },
       he: {
         common: common_he,
@@ -77,7 +83,8 @@ i18n
         dashboard: dashboard_he,
         advisories: advisories_he,
         studentPlans: studentPlans_he,
-        levelsMover: levelsMover_he // NEW
+        levelsMover: levelsMover_he,
+        display: display_he // NEW
       }
     },
     interpolation: { escapeValue: false },

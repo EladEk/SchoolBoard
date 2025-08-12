@@ -1,0 +1,116 @@
+/* src/components/display/BigTableWidget.css */
+
+/* Card container for the table */
+.bigtable-widget{
+  background:#fff;
+  border-radius:var(--radius-xl);
+  box-shadow:var(--shadow);
+  padding:10px 12px;
+  border:3px dashed rgba(255,255,255,0.6);
+  outline:3px solid rgba(189,224,254,.45);
+}
+
+/* No internal scroll */
+.plan{
+  overflow:visible;
+  max-height:none;
+  border-radius:var(--radius-lg);
+}
+
+/* Table */
+.ls-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  direction:rtl;
+  table-layout:fixed;
+  font-size:clamp(15px,1.25vw,18px);
+  background:linear-gradient(180deg,#fff,#fff8);
+  border-radius:var(--radius-lg);
+}
+
+/* Day header row */
+.ls-th{
+  color:#233;
+  font-weight:900;
+  padding:clamp(8px,1.2vh,12px) 8px;
+  position:sticky; top:0; z-index:3;
+  background:linear-gradient(180deg,#ffffff,#f7f9ff);
+  border-bottom:3px solid rgba(0,0,0,.05);
+  font-size: 1em; /* default */
+}
+
+/* Time column (sticky) */
+.ls-th-time,
+.ls-td-time{
+  position:sticky; left:0; z-index:4;
+  width:clamp(150px,13vw,190px);
+  background:linear-gradient(180deg,var(--lemon),#fff3);
+  color:#202020;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  font-size: inherit; /* keep original size */
+  padding:clamp(8px,1.2vh,12px) 10px;
+  border-inline-end:3px solid rgba(0,0,0,.04);
+  border-bottom:3px solid rgba(0,0,0,.04);
+}
+
+/* Body cells */
+.ls-td{
+  padding:clamp(6px,1.1vh,10px) clamp(8px,1vw,12px);
+  vertical-align:middle;
+  background:#fff;
+  border-bottom:3px solid rgba(0,0,0,.04);
+  border-right:3px solid rgba(0,0,0,.04);
+  line-height:1.22;
+}
+
+/* Zebra striping */
+.ls-table tbody tr:nth-child(even) .ls-td{ background:#fdfcff; }
+
+/* Current row & cell */
+.ls-row-now{ outline:3px solid var(--brand-pink); outline-offset:-2px; }
+.ls-td-now{
+  background:#111 !important;
+  color:var(--gold) !important;
+  border:2px solid #fff !important;
+  box-shadow:0 0 0 3px rgba(243,198,63,.45) inset;
+}
+
+/* Lesson cell layout */
+.ls-cell{ display:grid; gap:6px; }
+.ls-cell-text{
+  font-weight:800;
+  color:#14223a;
+  background:#ffffffcc;
+  border-radius:12px;
+  padding:2px 6px;
+  box-shadow:0 2px 0 rgba(0,0,0,.06);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ls-td-now .ls-cell-text{
+  color:var(--gold) !important;
+  background:transparent;
+  box-shadow:none;
+}
+
+/* Hide bottom clock if present */
+.clock-under{ display:none; }
+
+@media (hover:hover){
+  .ls-td:hover{ outline:1px dashed rgba(0,0,0,.13); outline-offset:-2px; }
+}
+
+/* === FORCE bigger lesson text only (no row height change) === */
+.bigtable-widget .ls-td .ls-cell-text{
+  font-size: clamp(18px, 1.3vw, 24px) !important; /* bigger text */
+  line-height: 1 !important;                      /* keep rows compact */
+  padding: 2px 6px !important;                    /* trim to avoid growth */
+  max-height: 1.25em !important;                  /* lock height */
+}
+
+.bigtable-widget .ls-td-now .ls-cell-text{
+  color: var(--gold) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}

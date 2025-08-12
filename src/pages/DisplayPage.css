@@ -1,0 +1,79 @@
+:root{
+  --bg-1:#FDF6FF; --bg-2:#F3FBFF; --ink:#1f2a44; --muted:#61708a;
+  --lemon:#FFF3B0; --sky:#BDE0FE; --rose:#FFC6FF;
+  --brand-green:#40f09e; --brand-pink: rgb(234,122,183); --gold:#F3C63F;
+  --radius-xl:22px; --radius-lg:18px; --radius-md:14px;
+  --shadow:0 8px 24px rgba(31,42,68,.08), 0 2px 10px rgba(31,42,68,.05);
+}
+
+html, body, #root{ height:100%; }
+
+/* Page shell */
+.display-root{
+  min-height:100%;
+  padding:14px 16px;
+  text-align:right;
+  direction:rtl;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, var(--bg-2), transparent),
+    radial-gradient(1200px 600px at 110% 0%, var(--rose), transparent),
+    linear-gradient(180deg, var(--bg-1), #ffffff);
+  margin:0;
+  color:var(--ink);
+  font-family:"Trebuchet MS","Nunito","Comic Sans MS",system-ui,Segoe UI,Arial,sans-serif;
+}
+
+/* News ticker */
+.news-ticker{
+  background:#10131a;
+  color:#fff;
+  border-radius:14px;
+  box-shadow:0 6px 22px rgba(0,0,0,.2) inset, 0 1px 0 rgba(255,255,255,.12);
+  padding:8px 14px;
+  margin-bottom:10px;
+  font-size:clamp(14px,1.4vw,20px);
+  font-weight:800;
+  letter-spacing:.2px;
+  overflow:hidden;
+}
+
+/* Header: title + top clock */
+.display-header{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+/* Title with same background as clock, black text */
+.display-title{
+  margin:0;
+  font-weight:900;
+  text-align:center;
+  font-size:clamp(24px,3.2vw,38px);
+  color:black;
+  font-family: 'Comic Sans MS', 'Fredoka One', cursive;
+  background: linear-gradient(135deg, var(--brand-green), var(--brand-pink));
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+  border: 3px solid rgba(255,255,255,0.8);
+}
+
+/* Smaller top clock (keeps same ClockWidget style) */
+.top-clock .clock-widget {
+  font-size: clamp(1.8rem, 3.5vw, 3rem);
+  padding: 6px 12px;
+}
+
+/* Layout: big table + compact side panel */
+.display-layout{
+  display:grid;
+  grid-template-columns:5fr 1.2fr;
+  gap:14px;
+  align-items:start;
+}
+@media (max-width:1200px){
+  .display-layout{ grid-template-columns:1fr; }
+}

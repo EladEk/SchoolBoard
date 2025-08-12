@@ -1,0 +1,22 @@
+{
+  "title": "מערכת שעות בית ספר",
+  "timeColumn": "שעה",
+  "timeSlots": "משבצות זמן",
+  "happeningNow": "מתקיים עכשיו",
+  "noClassesNow": "אין שיעורים שמתקיימים כעת.",
+  "place": "מקום",
+  "teacher": "מורה",
+  "students": "תלמידים",
+  "noStudents": "אין תלמידים לשיעור זה.",
+  "rotatingHint": "הדגשה מתחלפת כל 5 שניות",
+  "days": {
+    "sunday": "יום ראשון",
+    "monday": "יום שני",
+    "tuesday": "יום שלישי",
+    "wednesday": "יום רביעי",
+    "thursday": "יום חמישי",
+    "friday": "יום שישי",
+    "saturday": "יום שבת",
+    "day": "יום {{number}}"
+  }
+}

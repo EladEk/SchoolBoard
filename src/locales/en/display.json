@@ -1,0 +1,22 @@
+{
+  "title": "School Schedule",
+  "timeColumn": "Time",
+  "timeSlots": "time slots",
+  "happeningNow": "Happening Now",
+  "noClassesNow": "No classes in session right now.",
+  "place": "Place",
+  "teacher": "Teacher",
+  "students": "Students",
+  "noStudents": "No students listed for this lesson.",
+  "rotatingHint": "Rotating highlight every 5 seconds",
+  "days": {
+    "sunday": "Sunday",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "day": "Day {{number}}"
+  }
+}
