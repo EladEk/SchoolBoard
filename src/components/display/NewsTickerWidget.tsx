@@ -29,7 +29,7 @@ export default function NewsTickerWidget() {
         .map(d => String((d.data() as any)?.text ?? '').trim())
         .filter(Boolean)
 
-      const list = texts.length ? texts : ['ברוכים הבאים ל-SchoolBoard! ⭐']
+      const list = texts.length ? texts : ['ברוכים הבאים ל-בית הספר דב"ש ⭐']
       setItems(list)
       setIdx(0)
       setCycle(0) // restart animation on data changes
