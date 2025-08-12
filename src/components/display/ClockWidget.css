@@ -25,3 +25,11 @@
 @keyframes blink {
   50% { opacity: 0; }
 }
+/* Force LTR rendering so HH:MM never flips to MM:HH in RTL layouts */
+.clock-text {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums; /* keeps digits aligned if the font supports it */
+  /* optional styling—keep or remove */
+  font-weight: 700;
+}
