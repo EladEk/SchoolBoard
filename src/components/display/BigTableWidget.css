@@ -1,116 +1,172 @@
 /* src/components/display/BigTableWidget.css */
+/* === FOX KIDS THEME – playful, bold, super legible === */
 
-/* Card container for the table */
 .bigtable-widget{
-  background:#fff;
-  border-radius:var(--radius-xl);
-  box-shadow:var(--shadow);
-  padding:10px 12px;
-  border:3px dashed rgba(255,255,255,0.6);
-  outline:3px solid rgba(189,224,254,.45);
+  --fox-yellow:#FFD83B;
+  --fox-pink:#FF5FB7;
+  --fox-blue:#2BD1FF;
+  --fox-purple:#7D5CFF;
+  --fox-green:#28D17C;
+  --fox-orange:#FF8A00;
+
+  background: #fff;
+  border-radius: 28px;
+  /* sticker outline vibe */
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.18),
+    0 0 0 6px #0000000d,
+    0 0 0 3px #ffffff;
+  padding: 14px 16px;
+  border: 4px solid #00000012;             /* cartoon stroke */
+  outline: 6px dashed rgba(255,255,255,.65);/* playful dash */
+  outline-offset: -6px;
 }
 
-/* No internal scroll */
+/* Plan wrapper (no internal scroll) */
 .plan{
-  overflow:visible;
-  max-height:none;
-  border-radius:var(--radius-lg);
+  overflow: visible;
+  max-height: none;
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 15% -30%, #fff 0 60%, #fff0 60%),
+    radial-gradient(ellipse at 85% 130%, #fff 0 60%, #fff0 60%),
+    linear-gradient(180deg,#fff,#fff8);
+  padding: 6px;
 }
 
-/* Table */
+/* Table base */
 .ls-table{
-  width:100%;
-  border-collapse:separate;
-  border-spacing:0;
-  direction:rtl;
-  table-layout:fixed;
-  font-size:clamp(15px,1.25vw,18px);
-  background:linear-gradient(180deg,#fff,#fff8);
-  border-radius:var(--radius-lg);
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  direction: rtl;
+  table-layout: fixed;
+  font-size: clamp(15px,1.25vw,18px);
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-/* Day header row */
+/* Day header row — bold, candy colors */
 .ls-th{
-  color:#233;
-  font-weight:900;
-  padding:clamp(8px,1.2vh,12px) 8px;
-  position:sticky; top:0; z-index:3;
-  background:linear-gradient(180deg,#ffffff,#f7f9ff);
-  border-bottom:3px solid rgba(0,0,0,.05);
-  font-size: 1em; /* default */
+  color: #141414 !important; 
+  font-weight: 900 !important; 
+  font-size: 130%;
+  text-transform: uppercase;
+  letter-spacing: .02em !important; 
+  padding: clamp(10px,1.6vh,14px) 10px !important; 
+  position: sticky; top: 0; z-index: 3 !important; 
+  background: #fff;
+  border-bottom: 4px solid #00000010;
+  text-shadow: 0 1px 0 #fff !important; 
 }
 
-/* Time column (sticky) */
+/* Give each day its own bright block color */
+.ls-th:nth-child(2){ background: linear-gradient(135deg,var(--fox-yellow),#FFEAA0); }
+.ls-th:nth-child(3){ background: linear-gradient(135deg,var(--fox-blue), #B8F0FF); }
+.ls-th:nth-child(4){ background: linear-gradient(135deg,var(--fox-pink), #FFC3E3); }
+.ls-th:nth-child(5){ background: linear-gradient(135deg,var(--fox-purple),#D5C8FF); }
+.ls-th:nth-child(6){ background: linear-gradient(135deg,var(--fox-green), #BFF3D9); }
+.ls-th:nth-child(7){ background: linear-gradient(135deg,var(--fox-orange),#FFD2A6); }
+
+/* Time column (sticky) – chunky pill */
 .ls-th-time,
 .ls-td-time{
-  position:sticky; left:0; z-index:4;
-  width:clamp(150px,13vw,190px);
-  background:linear-gradient(180deg,var(--lemon),#fff3);
-  color:#202020;
-  font-weight:900;
-  font-variant-numeric:tabular-nums;
-  font-size: inherit; /* keep original size */
-  padding:clamp(8px,1.2vh,12px) 10px;
-  border-inline-end:3px solid rgba(0,0,0,.04);
-  border-bottom:3px solid rgba(0,0,0,.04);
+  position: sticky; left: 0; z-index: 4;
+  width: clamp(150px,13vw,190px);
+  background: linear-gradient(135deg,#FFF5C4,var(--fox-yellow));
+  color:#101010;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  padding: clamp(10px,1.6vh,14px) 12px;
+  border-inline-end: 4px solid #0000000e;
+  border-bottom: 4px solid #0000000e;
+  box-shadow: 6px 0 0 #00000008 inset;
+  text-shadow: 0 1px 0 #fff;
 }
 
-/* Body cells */
+/* Body cells – crisp cards */
 .ls-td{
-  padding:clamp(6px,1.1vh,10px) clamp(8px,1vw,12px);
-  vertical-align:middle;
-  background:#fff;
-  border-bottom:3px solid rgba(0,0,0,.04);
-  border-right:3px solid rgba(0,0,0,.04);
-  line-height:1.22;
+  padding: clamp(8px,1.2vh,12px) clamp(10px,1.4vw,14px);
+  vertical-align: middle;
+  background: #fff;
+  border-bottom: 4px solid #0000000a;
+  border-right: 4px solid #0000000a;
+  line-height: 1.22;
 }
 
 /* Zebra striping */
-.ls-table tbody tr:nth-child(even) .ls-td{ background:#fdfcff; }
-
-/* Current row & cell */
-.ls-row-now{ outline:3px solid var(--brand-pink); outline-offset:-2px; }
-.ls-td-now{
-  background:#111 !important;
-  color:var(--gold) !important;
-  border:2px solid #fff !important;
-  box-shadow:0 0 0 3px rgba(243,198,63,.45) inset;
+.ls-table tbody tr:nth-child(even) .ls-td{
+  background: #FFF9FE;
 }
 
-/* Lesson cell layout */
-.ls-cell{ display:grid; gap:6px; }
+/* Current row glow */
+.ls-row-now{
+  outline: 4px solid var(--fox-pink);
+  outline-offset: -2px;
+  filter: drop-shadow(0 6px 12px rgba(255,95,183,.25));
+}
+
+/* Current cell – arcade highlight */
+.ls-td-now{
+  background: #111 !important;
+  color: #FFD83B !important;
+  border: 3px solid #fff !important;
+  box-shadow:
+    0 0 0 4px rgba(243,198,63,.45) inset,
+    0 8px 18px rgba(0,0,0,.35);
+  position: relative;
+}
+.ls-td-now::after{
+  content: '⭐';
+  position: absolute;
+  top: -10px; inset-inline-start: -10px;
+  font-size: 20px;
+  transform: rotate(-12deg);
+}
+
+/* Lesson pill */
+.ls-cell{ display: grid; gap: 8px; }
 .ls-cell-text{
-  font-weight:800;
-  color:#14223a;
-  background:#ffffffcc;
-  border-radius:12px;
-  padding:2px 6px;
-  box-shadow:0 2px 0 rgba(0,0,0,.06);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-weight: 900;
+  color: #14223a !important;
+  background: #ffffffd9;
+  font-size: 110% !important;
+  border-radius: 14px;
+  padding: 4px 10px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.08);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 2px solid #0000000e;
 }
 .ls-td-now .ls-cell-text{
-  color:var(--gold) !important;
-  background:transparent;
-  box-shadow:none;
+  color: #FFD83B !important;
+  background: transparent;
+  box-shadow: none;
+  font-size: 120% !important; 
+  border-color: transparent;
+  animation: fox-pop .9s ease-in-out infinite alternate;
+}
+
+/* Bigger lesson text (keeps row height compact) */
+.bigtable-widget .ls-td .ls-cell-text{
+  font-size: clamp(18px,1.4vw,26px);
+  line-height: 1 !important;
+  padding: 4px 10px !important;
+  max-height: 1.35em !important;
+}
+
+/* Subtle hover for big screens */
+@media (hover:hover){
+  .ls-td:hover{
+    outline: 2px dashed rgba(0,0,0,.18);
+    outline-offset: -3px;
+  }
 }
 
 /* Hide bottom clock if present */
-.clock-under{ display:none; }
+.clock-under{ display: none; }
 
-@media (hover:hover){
-  .ls-td:hover{ outline:1px dashed rgba(0,0,0,.13); outline-offset:-2px; }
-}
-
-/* === FORCE bigger lesson text only (no row height change) === */
-.bigtable-widget .ls-td .ls-cell-text{
-  font-size: clamp(18px, 1.3vw, 24px) !important; /* bigger text */
-  line-height: 1 !important;                      /* keep rows compact */
-  padding: 2px 6px !important;                    /* trim to avoid growth */
-  max-height: 1.25em !important;                  /* lock height */
-}
-
-.bigtable-widget .ls-td-now .ls-cell-text{
-  color: var(--gold) !important;
-  background: transparent !important;
-  box-shadow: none !important;
+/* Fun pop animation for current lesson */
+@keyframes fox-pop{
+  from{ transform: translateY(0) scale(1); }
+  to  { transform: translateY(-2px) scale(1.03); }
 }
