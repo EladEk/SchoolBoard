@@ -1,0 +1,88 @@
+/* Stronger selector to beat global styles */
+div.news-ticker {
+  direction: rtl;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-direction: row; /* label then viewport */
+  padding: 10px 14px;
+  border-radius: 20px;
+
+  /* 🌈 Kid-friendly gradient — forced with !important */
+  background: linear-gradient(
+    90deg,
+    #ffecb3 0%,   /* soft yellow */
+    #b3e5fc 33%,  /* soft sky blue */
+    #ffc6ff 66%,  /* soft pink */
+    #b2ffb2 100%  /* mint green */
+  ) !important;
+
+  box-shadow:
+    0 6px 18px rgba(0,0,0,.08),
+    inset 0 0 0 1px rgba(0,0,0,.06);
+  border: 0;
+}
+
+/* Label fixed at left */
+.news-ticker .news-label {
+  white-space: nowrap;
+  font-family: "Fredoka","Rubik","Alef",system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,Arial,sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: #000; /* black text */
+  background: rgba(255,255,255,.85);
+  border-radius: 14px;
+  padding: 6px 10px;
+  line-height: 1;
+  box-shadow: 0 2px 0 rgba(0,0,0,.06);
+  flex-shrink: 0;
+}
+
+/* Full-width viewport for sliding text */
+.news-ticker .news-viewport {
+  direction: ltr;
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
+/* The sliding text item */
+.news-ticker .news-item {
+  display: inline-block;
+  padding: 0 2rem;
+  font-family: "Rubik","Alef",system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,Arial,sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #000; /* black text for news */
+  letter-spacing: .2px;
+  text-shadow: none; /* remove white outline for clarity */
+  will-change: transform;
+}
+
+/* Mobile font scaling */
+@media (max-width: 768px) {
+  .news-ticker { font-size: 100% !important; }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  div.news-ticker {
+    background: linear-gradient(
+      90deg,
+      #0a3843 0%,
+      #3a2a00 33%,
+      #3b0032 66%,
+      #003b1a 100%
+    ) !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .news-ticker .news-label {
+    background: rgba(255,255,255,.85);
+    color: #000; /* still black in dark mode */
+  }
+  .news-ticker .news-item {
+    color: #ffc6ff; /* still black in dark mode */
+    text-shadow: none;
+  }
+}

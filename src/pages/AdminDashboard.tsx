@@ -6,15 +6,17 @@ import ClassesAdmin from '../components/admin/ClassesAdmin';
 import LessonsAdmin from '../components/admin/LessonsAdmin';
 import LessonsScheduler from '../components/lessons/LessonsScheduler';
 import TeacherAdvisorsAdmin from '../components/admin/TeacherAdvisorsAdmin';
-import LevelsMover from '../components/admin/LevelsMover'; // <-- NEW
+import LevelsMover from '../components/admin/LevelsMover';
+import NewsAdmin from '../components/admin/NewsAdmin'; // ← NEW
 import { useTranslation } from 'react-i18next';
 import styles from './AdminDashboard.module.css';
 
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const [active, setActive] = useState<
-    'users' | 'classes' | 'lessons' | 'timetable' | 'advisories' | 'levels'
+    'users' | 'classes' | 'lessons' | 'timetable' | 'advisories' | 'levels' | 'news'
   >('users');
+
   const navigate = useNavigate();
 
   const session = useMemo(() => {
@@ -32,7 +34,8 @@ export default function AdminDashboard() {
     { key: 'lessons',    label: t('dashboard:tabs.lessons', 'Lessons') },
     { key: 'timetable',  label: t('dashboard:tabs.timetable', 'Timetable') },
     { key: 'advisories', label: t('dashboard:tabs.advisories', 'Advisories') },
-    { key: 'levels',     label: t('dashboard:tabs.levels', 'הזזת רמות') }, // <-- NEW
+    { key: 'levels',     label: t('dashboard:tabs.levels', 'הזזת רמות') },
+    { key: 'news',       label: t('dashboard:tabs.news', 'News') }, // ← NEW
   ];
 
   return (
@@ -86,7 +89,8 @@ export default function AdminDashboard() {
           {active === 'lessons' && <LessonsAdmin />}
           {active === 'timetable' && <LessonsScheduler />}
           {active === 'advisories' && <TeacherAdvisorsAdmin />}
-          {active === 'levels' && <LevelsMover />}{/* <-- NEW */}
+          {active === 'levels' && <LevelsMover />}
+          {active === 'news' && <NewsAdmin />}{/* ← NEW */}
         </section>
       </main>
     </div>
