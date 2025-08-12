@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query,
-  serverTimestamp, updateDoc, where
+  serverTimestamp, updateDoc, where, writeBatch
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
 import * as XLSX from 'xlsx';
@@ -51,6 +51,48 @@ function showToastFn(
 ) {
   setToast({ show: true, kind, message });
   setTimeout(() => setToast({ show: false }), 2600);
+}
+
+/**
+ * Rename propagation: update any denormalized class labels
+ * in documents that *also* store the class name/label in addition to its id.
+ * Safe to run even if those fields don't exist.
+ */
+async function propagateClassRename(
+  classDocId: string,
+  newName: string,
+  newLocation?: string,
+) {
+  // Label used by some UIs
+  const label = [newName || '', newLocation || ''].filter(Boolean).join(' · ');
+
+  // 1) timetableEntries.className (most important)
+  const qEntries = query(collection(db, 'timetableEntries'), where('classId', '==', classDocId));
+  const snapEntries = await getDocs(qEntries);
+  if (!snapEntries.empty) {
+    let batch = writeBatch(db);
+    let count = 0;
+    for (const d of snapEntries.docs) {
+      batch.update(d.ref, { className: label }); // harmless if field doesn't exist
+      count++;
+      if (count % 450 === 0) { await batch.commit(); batch = writeBatch(db); }
+    }
+    await batch.commit();
+  }
+
+  // 2) appUsers.className (homeroom cached on user – optional, if you use it)
+  const qUsers = query(collection(db, 'appUsers'), where('classId', '==', classDocId));
+  const snapUsers = await getDocs(qUsers);
+  if (!snapUsers.empty) {
+    let batch = writeBatch(db);
+    let count = 0;
+    for (const d of snapUsers.docs) {
+      batch.update(d.ref, { className: label }); // harmless if not used
+      count++;
+      if (count % 450 === 0) { await batch.commit(); batch = writeBatch(db); }
+    }
+    await batch.commit();
+  }
 }
 
 // ---------------- Component ----------------
@@ -162,6 +204,10 @@ export default function ClassesAdmin() {
       }
 
       await updateDoc(doc(db, 'classes', id), { classId, classIdLower, location, name });
+
+      // keep any denormalized copies fresh
+      await propagateClassRename(id, name, location);
+
       showToastFn(setToast, 'success', t('classes:toasts.updated', { classId }));
       closeEdit();
     } catch (err: any) {
@@ -250,18 +296,22 @@ export default function ClassesAdmin() {
           const existing = existingMap.get(key);
           if (existing) {
             await updateDoc(doc(db, 'classes', existing.id), payload);
+            // Propagate rename on import update as well
+            await propagateClassRename(existing.id, name, location);
             updated++;
           } else {
-            await addDoc(collection(db, 'classes'), { ...payload, createdAt: serverTimestamp() });
+            const ref = await addDoc(collection(db, 'classes'), { ...payload, createdAt: serverTimestamp() });
+            await propagateClassRename(ref.id, name, location);
             created++;
           }
         } else {
           const generated = await generateUniqueClassId();
-          await addDoc(collection(db, 'classes'), {
+          const ref = await addDoc(collection(db, 'classes'), {
             classId: generated,
             classIdLower: generated.toLowerCase(),
             name, location, createdAt: serverTimestamp(),
           });
+          await propagateClassRename(ref.id, name, location);
           created++;
         }
       }
@@ -276,140 +326,100 @@ export default function ClassesAdmin() {
     }
   }
 
-  // --------------- Render ---------------
+  // --------------- UI ---------------
   return (
-    <div className={styles.wrapper}>
-      {/* Toast */}
-      {toast.show && (
-        <div className={[
-          styles.toast,
-          toast.kind === 'success' ? styles.toastSuccess : toast.kind === 'info' ? styles.toastInfo : styles.toastError
-        ].join(' ')} role="status" aria-live="polite">{toast.message}</div>
-      )}
+    <div className={styles.wrap}>
+      <header className={styles.header}>
+        <h2>{t('classes:title', 'Classes')}</h2>
+      </header>
 
-      <div className={styles.actionBar}>
-        <h2 className="text-xl font-semibold text-white">{t('classes:manage')}</h2>
-        <div className="flex gap-2">
-          <button onClick={downloadTemplate} className={styles.btn}>{t('common:downloadTemplate')}</button>
-          <button onClick={exportItems} className={styles.btn}>{t('common:export')}</button>
-          <button onClick={openFilePicker} disabled={busyImport} className={`${styles.btn} ${styles.btnPrimary}`}>
-            {busyImport ? t('classes:adding') : t('common:import')}
-          </button>
+      <section className={styles.card}>
+        <h3 className={styles.cardTitle}>{t('classes:new', 'Create Class')}</h3>
+        <form onSubmit={createItem} className={styles.form}>
           <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleImportFile}
-            className={styles.fileInputHidden}
-            aria-hidden="true"
-            tabIndex={-1}
+            className={styles.input}
+            placeholder={t('classes:name', 'Class name')!}
+            value={form.name}
+            onChange={e => setForm(v => ({ ...v, name: e.target.value }))}
           />
-        </div>
-      </div>
-
-      {/* Create form (no ClassID field) */}
-      <form onSubmit={createItem} className={`${styles.panel} grid grid-cols-1 md:grid-cols-4 gap-3 p-4`}>
-        <input
-          type="text" placeholder={t('classes:location')!} value={form.location}
-          onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-          className={styles.input} autoComplete="off"
-        />
-        <input
-          type="text" placeholder={t('classes:name')!} value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className={styles.input} autoComplete="off"
-        />
-        <div className="md:col-span-1 flex items-stretch">
-          <button type="submit" disabled={!canCreate || submitting} className={`${styles.btn} ${styles.btnPrimary}`}>
-            {submitting ? t('classes:adding') : t('classes:add')}
+          <input
+            className={styles.input}
+            placeholder={t('classes:location', 'Location')!}
+            value={form.location}
+            onChange={e => setForm(v => ({ ...v, location: e.target.value }))}
+          />
+          <button className={styles.btn} disabled={!canCreate || submitting}>
+            {t('common:create', 'Create')}
           </button>
-        </div>
-      </form>
+        </form>
+      </section>
 
-      {/* List */}
-      <div className={styles.tableWrap}>
+      <section className={styles.card}>
+        <div className={styles.cardTitleRow}>
+          <h3 className={styles.cardTitle}>{t('classes:list', 'All Classes')}</h3>
+          <div className={styles.actions}>
+            <button className={styles.btnSecondary} onClick={downloadTemplate}>{t('common:template', 'Template')}</button>
+            <button className={styles.btnSecondary} onClick={exportItems}>{t('common:export', 'Export')}</button>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={handleImportFile} />
+            <button className={styles.btnSecondary} onClick={() => fileInputRef.current?.click()} disabled={busyImport}>
+              {busyImport ? t('common:importing','Importing...') : t('common:import','Import')}
+            </button>
+          </div>
+        </div>
+
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>{t('classes:table.classId')}</th>
-              <th>{t('classes:table.location')}</th>
-              <th>{t('classes:table.name')}</th>
-              <th className="w-48">{t('common:actions')}</th>
+              <th>{t('classes:table.classId', 'Class ID')}</th>
+              <th>{t('classes:table.name', 'Name')}</th>
+              <th>{t('classes:table.location', 'Location')}</th>
+              <th style={{width:180}}>{t('common:actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((c) => (
-              <tr key={c.id}>
-                <td>{c.classId}</td>
-                <td>{c.location}</td>
-                <td>{c.name}</td>
-                <td>
-                  <div className="flex gap-2">
-                    <button onClick={() => openEdit(c)} className={styles.btn}>{t('common:edit')}</button>
-                    <button onClick={() => removeItem(c.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete')}</button>
-                  </div>
+            {items.map(row => (
+              <tr key={row.id}>
+                <td>{row.classId}</td>
+                <td>{row.name}</td>
+                <td>{row.location}</td>
+                <td style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+                  <button className={styles.btnSmall} onClick={() => openEdit(row)}>{t('common:edit','Edit')}</button>
+                  <button className={styles.btnSmallDanger} onClick={() => removeItem(row.id)}>{t('common:delete','Delete')}</button>
                 </td>
               </tr>
             ))}
-            {!items.length && (
-              <tr><td colSpan={4} style={{ color: 'var(--sb-muted)', padding: '1rem' }}>{t('common:noItems')}</td></tr>
-            )}
           </tbody>
         </table>
-      </div>
+      </section>
 
-      {/* Edit modal */}
       {edit.open && (
-        <div className={styles.modalScrim} onClick={(e) => { if (e.target === e.currentTarget) closeEdit(); }}>
-          <div className={styles.modalCard}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-white">{t('classes:editTitle')}</h3>
-              <button className={styles.btn} onClick={closeEdit} aria-label={t('common:close')!}>✕</button>
+        <div className={styles.modalScrim} onClick={closeEdit}>
+          <div
+            className={styles.modalCard}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className={styles.cardTitle}>{t('classes:editTitle','Edit Class')}</h3>
+            <label className={styles.label}>{t('classes:classId','Class ID')}</label>
+            <div className={styles.row}>
+              <input className={styles.input} value={edit.classId} onChange={e => setEdit(prev => prev.open ? { ...prev, classId:e.target.value } : prev)} />
+              <button className={styles.btnSecondary} onClick={regenerateEditId}>{t('classes:regen','Regenerate')}</button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <label className="block text-sm text-neutral-300 mb-1">{t('classes:classId')}</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text" value={edit.classId}
-                    onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, classId: e.target.value } : prev))}
-                    className={styles.input}
-                  />
-                  <button type="button" onClick={regenerateEditId} className={styles.btn} title={t('common:regenerate')!}>
-                    {t('common:regenerate')}
-                  </button>
-                </div>
-              </div>
+            <label className={styles.label}>{t('classes:name','Name')}</label>
+            <input className={styles.input} value={edit.name} onChange={e => setEdit(prev => prev.open ? { ...prev, name:e.target.value } : prev)} />
 
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('classes:location')}</label>
-                <input
-                  type="text" value={edit.location}
-                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, location: e.target.value } : prev))}
-                  className={styles.input}
-                />
-              </div>
+            <label className={styles.label}>{t('classes:location','Location')}</label>
+            <input className={styles.input} value={edit.location} onChange={e => setEdit(prev => prev.open ? { ...prev, location:e.target.value } : prev)} />
 
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('classes:name')}</label>
-                <input
-                  type="text" value={edit.name}
-                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))}
-                  className={styles.input}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={closeEdit} className={styles.btn}>{t('common:cancel')}</button>
-              <button onClick={saveEdit} disabled={saving} className={`${styles.btn} ${styles.btnPrimary}`}>
-                {saving ? t('common:saving') : t('common:saveChanges')}
-              </button>
+            <div className={styles.modalActions}>
+              <button className={styles.btn} onClick={saveEdit} disabled={saving}>{t('common:save','Save')}</button>
+              <button className={styles.btnSecondary} onClick={closeEdit}>{t('common:cancel','Cancel')}</button>
             </div>
           </div>
         </div>
       )}
+
+      {toast.show && <div className={styles.toast}>{toast.message}</div>}
     </div>
   );
 }

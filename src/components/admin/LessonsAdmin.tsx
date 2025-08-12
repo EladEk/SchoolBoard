@@ -7,12 +7,14 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
 import * as XLSX from 'xlsx';
@@ -74,13 +76,7 @@ function labelFromUser(u?: AppUser | null) {
   const full = [u.firstName || '', u.lastName || ''].join(' ').replace(/\s+/g, ' ').trim();
   if (full && u.username) return `${full} (${u.username})`;
   if (full) return full;
-  return u.username || '';
-}
-function compactName(first?: string | null, last?: string | null, username?: string | null) {
-  const full = [first || '', last || ''].join(' ').replace(/\s+/g, ' ').trim();
-  if (full && username) return `${full} (${username})`;
-  if (full) return full;
-  return username || '';
+  return u?.username || '';
 }
 function showToastFn(
   setToast: React.Dispatch<React.SetStateAction<ToastState>>,
@@ -91,7 +87,7 @@ function showToastFn(
   setTimeout(() => setToast({ show: false }), 2600);
 }
 
-// Subject detection for filter rule
+// Subject detection for filter rule (used elsewhere in this file)
 type SubjectKey = 'hebrew' | 'math' | 'english' | null;
 function subjectOf(name: string): SubjectKey {
   const s = (name || '').toLowerCase().trim();
@@ -100,6 +96,25 @@ function subjectOf(name: string): SubjectKey {
   if (s.includes('חשבון') || s.startsWith('math')) return 'math';
   if (s.includes('אנגלית') || s.startsWith('english')) return 'english';
   return null;
+}
+
+/**
+ * Rename propagation: update any denormalized lesson labels
+ * in related documents (e.g., timetableEntries.lessonName).
+ */
+async function propagateLessonRename(lessonId: string, newName: string) {
+  const qEntries = query(collection(db, 'timetableEntries'), where('lessonId', '==', lessonId));
+  const snap = await getDocs(qEntries);
+  if (snap.empty) return;
+
+  let batch = writeBatch(db);
+  let i = 0;
+  for (const d of snap.docs) {
+    batch.update(d.ref, { lessonName: newName }); // harmless if field doesn't exist
+    i++;
+    if (i % 450 === 0) { await batch.commit(); batch = writeBatch(db); }
+  }
+  await batch.commit();
 }
 
 // ---------------- Component ----------------
@@ -309,6 +324,10 @@ export default function LessonsAdmin() {
       }
 
       await updateDoc(doc(db, 'lessons', edit.id), update);
+
+      // keep any denormalized copies fresh
+      await propagateLessonRename(edit.id, name);
+
       showToastFn(setToast, 'success', t('lessons:toasts.updated', { name }));
       closeEdit();
     } catch (err: any) {
@@ -444,12 +463,13 @@ export default function LessonsAdmin() {
 
         const existing = existingMap.get(name);
         if (existing) {
-          // keep existing memberships if any
           if (existing.studentsUserIds) (payload as any).studentsUserIds = existing.studentsUserIds;
           await updateDoc(doc(db, 'lessons', existing.id), payload);
+          await propagateLessonRename(existing.id, name); // keep caches fresh on import update as well
           updated++;
         } else {
-          await addDoc(collection(db, 'lessons'), { ...payload, createdAt: serverTimestamp(), studentsUserIds: [] });
+          const ref = await addDoc(collection(db, 'lessons'), { ...payload, createdAt: serverTimestamp(), studentsUserIds: [] });
+          await propagateLessonRename(ref.id, name);
           created++;
         }
       }
@@ -464,452 +484,246 @@ export default function LessonsAdmin() {
     }
   }
 
-  // ---------- Manage students logic ----------
+  // ---------- Manage students ----------
   const manageLesson = useMemo(() => lessons.find(l => l.id === manageLessonId) || null, [lessons, manageLessonId]);
   const manageLessonSubject = useMemo<SubjectKey>(() => subjectOf(manageLesson?.name || ''), [manageLesson]);
 
-  // Students already in ANY lesson of the same subject (hebrew/math/english)
   const subjectTakenSet = useMemo<Set<string>>(() => {
     if (!manageLessonSubject) return new Set();
     const taken = new Set<string>();
     for (const l of lessons) {
-      if (l.id === manageLessonId) continue;
-      if (subjectOf(l.name || '') !== manageLessonSubject) continue;
-      for (const sid of l.studentsUserIds || []) taken.add(sid);
+      if (subjectOf(l.name) === manageLessonSubject) {
+        for (const sid of (l.studentsUserIds || [])) taken.add(sid);
+      }
     }
     return taken;
-  }, [lessons, manageLessonId, manageLessonSubject]);
+  }, [lessons, manageLessonSubject]);
 
-  const assignedIds = useMemo(() => new Set(manageLesson?.studentsUserIds || []), [manageLesson]);
-  const assignedStudents = useMemo(
-    () => students.filter(s => assignedIds.has(s.id)),
-    [students, assignedIds]
-  );
-
-  const poolStudents = useMemo(() => {
-    const q = searchStudent.trim().toLowerCase();
-    let list = students.filter(s => !assignedIds.has(s.id)); // not yet in this lesson
+  const candidateStudents = useMemo(() => {
+    const all = students.slice();
     if (!allowDuplicatesInSubject && manageLessonSubject) {
-      list = list.filter(s => !subjectTakenSet.has(s.id)); // hide those already in same subject
+      return all.filter(s => !subjectTakenSet.has(s.id));
     }
-    if (q) {
-      list = list.filter(s =>
-        [labelFromUser(s), s.username]
-          .filter(Boolean)
-          .some(v => (v as string).toLowerCase().includes(q))
-      );
-    }
-    list.sort((a, b) => (labelFromUser(a) || '').localeCompare(labelFromUser(b) || ''));
-    return list;
-  }, [students, assignedIds, allowDuplicatesInSubject, manageLessonSubject, subjectTakenSet, searchStudent]);
+    return all;
+  }, [students, allowDuplicatesInSubject, subjectTakenSet, manageLessonSubject]);
 
-  async function addStudentToLesson(studentId: string) {
-    if (!manageLesson) return;
-    try {
-      await updateDoc(doc(db, 'lessons', manageLesson.id), { studentsUserIds: arrayUnion(studentId) });
-    } catch (e: any) {
-      showToastFn(setToast, 'error', e?.message || 'Failed to add student');
-    }
+  async function addStudentToLesson(lessonId: string, studentId: string) {
+    await updateDoc(doc(db, 'lessons', lessonId), { studentsUserIds: arrayUnion(studentId) });
   }
-  async function removeStudentFromLesson(studentId: string) {
-    if (!manageLesson) return;
-    try {
-      await updateDoc(doc(db, 'lessons', manageLesson.id), { studentsUserIds: arrayRemove(studentId) });
-    } catch (e: any) {
-      showToastFn(setToast, 'error', e?.message || 'Failed to remove student');
-    }
-  }
-  async function bulkAddPool() {
-    if (!manageLesson || !poolStudents.length) return;
-    try {
-      const ref = doc(db, 'lessons', manageLesson.id);
-      await updateDoc(ref, { studentsUserIds: arrayUnion(...poolStudents.map(s => s.id)) });
-    } catch (e:any) {
-      showToastFn(setToast, 'error', e?.message || 'Failed to add all');
-    }
-  }
-  async function bulkRemoveAll() {
-    if (!manageLesson || !assignedStudents.length) return;
-    if (!window.confirm(t('common:confirm','Are you sure?')!)) return;
-    try {
-      const ref = doc(db, 'lessons', manageLesson.id);
-      await updateDoc(ref, { studentsUserIds: arrayRemove(...assignedStudents.map(s => s.id)) });
-    } catch (e:any) {
-      showToastFn(setToast, 'error', e?.message || 'Failed to remove all');
-    }
+  async function removeStudentFromLesson(lessonId: string, studentId: string) {
+    await updateDoc(doc(db, 'lessons', lessonId), { studentsUserIds: arrayRemove(studentId) });
   }
 
   // ---------- UI ----------
   return (
-    <div className={styles.wrapper}>
-      {/* Toast */}
-      {toast.show && (
-        <div
-          className={[
-            styles.toast,
-            toast.kind === 'success'
-              ? styles.toastSuccess
-              : toast.kind === 'info'
-              ? styles.toastInfo
-              : styles.toastError,
-          ].join(' ')}
-          role="status"
-          aria-live="polite"
-        >
-          {toast.message}
-        </div>
-      )}
+    <div className={styles.wrap}>
+      <header className={styles.header}>
+        <h2>{t('lessons:title', 'Lessons')}</h2>
+      </header>
 
-      <div className={styles.actionBar}>
-        <h2 className="text-xl font-semibold text-white">{t('lessons:manage')}</h2>
-        <div className="flex gap-2">
-          <button onClick={downloadTemplate} className={styles.btn}>{t('common:downloadTemplate')}</button>
-          <button onClick={exportItems} className={styles.btn}>{t('common:export')}</button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={busyImport}
-            className={`${styles.btn} ${styles.btnPrimary}`}
-          >
-            {busyImport ? t('lessons:adding') : t('common:import')}
-          </button>
+      <section className={styles.card}>
+        <h3 className={styles.cardTitle}>{t('lessons:new', 'Create Lesson')}</h3>
+        <form onSubmit={createLesson} className={styles.form}>
           <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleImportFile}
-            className={styles.fileInputHidden}
-            aria-hidden="true"
-            tabIndex={-1}
+            className={styles.input}
+            placeholder={t('lessons:name','Lesson name')!}
+            value={form.name}
+            onChange={e => setForm(v => ({ ...v, name: e.target.value }))}
           />
-        </div>
-      </div>
 
-      {/* Create */}
-      <form
-        onSubmit={createLesson}
-        className={`${styles.panel} grid grid-cols-1 md:grid-cols-5 gap-3 p-4`}
-      >
-        <input
-          type="text"
-          placeholder={t('lessons:name')!}
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className={`${styles.input} md:col-span-2`}
-          autoComplete="off"
-        />
+          <label className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={form.isStudentTeacher}
+              onChange={e => setForm(v => ({ ...v, isStudentTeacher: e.target.checked }))}
+            />
+            {t('lessons:isStudentTeacher','Student is the teacher')}
+          </label>
 
-        <label className="flex items-center gap-2 text-sm md:col-span-1">
-          <input
-            type="checkbox"
-            checked={form.isStudentTeacher}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                isStudentTeacher: e.target.checked,
-                teacherUsername: e.target.checked ? '' : f.teacherUsername,
-                studentUsername: e.target.checked ? f.studentUsername : '',
-              }))
-            }
-          />
-          {t('lessons:teacherIsStudent')}
-        </label>
+          {!form.isStudentTeacher ? (
+            <input
+              className={styles.input}
+              placeholder={t('lessons:teacherUsername','Teacher username')!}
+              value={form.teacherUsername}
+              onChange={e => setForm(v => ({ ...v, teacherUsername: e.target.value }))}
+            />
+          ) : (
+            <input
+              className={styles.input}
+              placeholder={t('lessons:studentUsername','Student username')!}
+              value={form.studentUsername}
+              onChange={e => setForm(v => ({ ...v, studentUsername: e.target.value }))}
+            />
+          )}
 
-        {/* Teacher select (username-based) */}
-        <select
-          disabled={form.isStudentTeacher}
-          value={form.teacherUsername}
-          onChange={(e) => setForm((f) => ({ ...f, teacherUsername: e.target.value }))}
-          className={[
-            styles.select,
-            form.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
-            'md:col-span-1',
-          ].join(' ')}
-        >
-          <option value="">{t('lessons:selectTeacher')}</option>
-          {teachers.map((tch) => (
-            <option key={tch.id} value={tch.username || ''}>
-              {labelFromUser(tch)}
-            </option>
-          ))}
-        </select>
-
-        {/* Student select (username-based) */}
-        <select
-          disabled={!form.isStudentTeacher}
-          value={form.studentUsername}
-          onChange={(e) => setForm((f) => ({ ...f, studentUsername: e.target.value }))}
-          className={[
-            styles.select,
-            !form.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : '',
-            'md:col-span-1',
-          ].join(' ')}
-        >
-          <option value="">{t('lessons:selectStudent')}</option>
-          {students.map((s) => (
-            <option key={s.id} value={s.username || ''}>
-              {labelFromUser(s)}
-            </option>
-          ))}
-        </select>
-
-        <div className="md:col-span-5 flex items-stretch">
-          <button
-            type="submit"
-            disabled={!canCreate || submitting}
-            className={`${styles.btn} ${styles.btnPrimary}`}
-          >
-            {submitting ? t('lessons:adding') : t('lessons:add')}
+          <button className={styles.btn} disabled={!canCreate || submitting}>
+            {t('common:create','Create')}
           </button>
-        </div>
-      </form>
+        </form>
+      </section>
 
-      {/* List */}
-      <div className={styles.tableWrap}>
+      <section className={styles.card}>
+        <div className={styles.cardTitleRow}>
+          <h3 className={styles.cardTitle}>{t('lessons:list','All Lessons')}</h3>
+          <div className={styles.actions}>
+            <button className={styles.btnSecondary} onClick={downloadTemplate}>{t('common:template','Template')}</button>
+            <button className={styles.btnSecondary} onClick={exportItems}>{t('common:export','Export')}</button>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={handleImportFile} />
+            <button className={styles.btnSecondary} onClick={() => fileInputRef.current?.click()} disabled={busyImport}>
+              {busyImport ? t('common:importing','Importing...') : t('common:import','Import')}
+            </button>
+          </div>
+        </div>
+
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>{t('lessons:table.name')}</th>
-              <th>{t('lessons:table.teacher')}</th>
-              <th className="w-72">{t('common:actions')}</th>
+              <th>{t('lessons:table.name','Name')}</th>
+              <th>{t('lessons:table.teacher','Teacher / Student-Teacher')}</th>
+              <th style={{width:240}}>{t('common:actions','Actions')}</th>
             </tr>
           </thead>
           <tbody>
-            {lessons.map((l) => {
-              const teacherStr = l.isStudentTeacher
-                ? `${compactName(l.studentFirstName, l.studentLastName, l.studentUsername)} ${t('lessons:labels.studentSuffix')}`
-                : compactName(l.teacherFirstName, l.teacherLastName, l.teacherUsername);
-              return (
-                <tr key={l.id}>
-                  <td>{l.name}</td>
-                  <td>{teacherStr || <span className="text-neutral-400">—</span>}</td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(l)} className={styles.btn}>{t('common:edit')}</button>
-                      <button onClick={() => removeLesson(l.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete')}</button>
-                      <button
-                        onClick={() => { setManageLessonId(l.id); setManageOpen(true); setSearchStudent(''); }}
-                        className={styles.btn}
-                      >
-                        {t('lessons:manageStudents','Manage students')}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {!lessons.length && (
-              <tr>
-                <td colSpan={3} style={{ color: 'var(--sb-muted)', padding: '1rem' }}>
-                  {t('common:noItems')}
+            {lessons.map(l => (
+              <tr key={l.id}>
+                <td>{l.name}</td>
+                <td>
+                  {!l.isStudentTeacher
+                    ? (l.teacherUsername || '-')
+                    : (l.studentUsername ? `${l.studentUsername} (${t('lessons:studentTeacher','student-teacher')})` : '-')}
+                </td>
+                <td style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+                  <button className={styles.btnSmall} onClick={() => openEdit(l)}>{t('common:edit','Edit')}</button>
+                  <button className={styles.btnSmall} onClick={() => { setManageLessonId(l.id); setManageOpen(true); }}>
+                    {t('lessons:manageStudents','Manage Students')}
+                  </button>
+                  <button className={styles.btnSmallDanger} onClick={() => removeLesson(l.id)}>{t('common:delete','Delete')}</button>
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
-      </div>
+      </section>
 
-      {/* Edit modal */}
+      {/* EDIT POPUP */}
       {edit.open && (
-        <div
-          className={styles.modalScrim}
-          onClick={(e) => { if (e.target === e.currentTarget) closeEdit(); }}
-        >
-          <div className={styles.modalCard}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-white">{t('lessons:editTitle')}</h3>
-              <button className={styles.btn} onClick={closeEdit} aria-label={t('common:close')!}>✕</button>
-            </div>
+        <div className={styles.modalScrim} onClick={closeEdit}>
+          <div
+            className={styles.modalCard}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className={styles.cardTitle}>{t('lessons:editTitle','Edit Lesson')}</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <label className="block text-sm text-neutral-300 mb-1">{t('lessons:name')}</label>
-                <input
-                  type="text"
-                  value={edit.name}
-                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))}
-                  className={styles.input}
-                />
-              </div>
+            <label className={styles.label}>{t('lessons:name','Name')}</label>
+            <input className={styles.input} value={edit.name} onChange={e => setEdit(prev => prev.open ? { ...prev, name:e.target.value } : prev)} />
 
-              <label className="flex items-center gap-2 text-sm md:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={edit.isStudentTeacher}
-                  onChange={(e) =>
-                    setEdit((prev) =>
-                      prev.open
-                        ? {
-                            ...prev,
-                            isStudentTeacher: e.target.checked,
-                            teacherUsername: e.target.checked ? '' : prev.teacherUsername,
-                            studentUsername: e.target.checked ? prev.studentUsername : '',
-                          }
-                        : prev
-                    )
-                  }
-                />
-                {t('lessons:teacherIsStudent')}
-              </label>
+            <label className={styles.checkbox}>
+              <input type="checkbox" checked={edit.isStudentTeacher} onChange={e => setEdit(prev => prev.open ? { ...prev, isStudentTeacher:e.target.checked } : prev)} />
+              {t('lessons:isStudentTeacher','Student is the teacher')}
+            </label>
 
-              {/* Teacher select */}
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('lessons:teacherByUsername')}</label>
-                <select
-                  disabled={edit.isStudentTeacher}
-                  value={edit.teacherUsername}
-                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, teacherUsername: e.target.value } : prev))}
-                  className={[styles.select, edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
-                >
-                  <option value="">{t('lessons:selectTeacher')}</option>
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.username || ''}>
-                      {labelFromUser(t)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {!edit.isStudentTeacher ? (
+              <>
+                <label className={styles.label}>{t('lessons:teacherUsername','Teacher username')}</label>
+                <input className={styles.input} value={edit.teacherUsername} onChange={e => setEdit(prev => prev.open ? { ...prev, teacherUsername:e.target.value } : prev)} />
+              </>
+            ) : (
+              <>
+                <label className={styles.label}>{t('lessons:studentUsername','Student username')}</label>
+                <input className={styles.input} value={edit.studentUsername} onChange={e => setEdit(prev => prev.open ? { ...prev, studentUsername:e.target.value } : prev)} />
+              </>
+            )}
 
-              {/* Student select */}
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('lessons:studentByUsername')}</label>
-                <select
-                  disabled={!edit.isStudentTeacher}
-                  value={edit.studentUsername}
-                  onChange={(e) => setEdit((prev) => (prev.open ? { ...prev, studentUsername: e.target.value } : prev))}
-                  className={[styles.select, !edit.isStudentTeacher ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
-                >
-                  <option value="">{t('lessons:selectStudent')}</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.username || ''}>
-                      {labelFromUser(s)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={closeEdit} className={styles.btn}>{t('common:cancel')}</button>
-              <button
-                onClick={saveEdit}
-                disabled={!canSaveEdit || saving}
-                className={`${styles.btn} ${styles.btnPrimary}`}
-              >
-                {saving ? t('common:saving') : t('common:saveChanges')}
-              </button>
+            <div className={styles.modalActions}>
+              <button className={styles.btn} onClick={saveEdit} disabled={!canSaveEdit || saving}>{t('common:save','Save')}</button>
+              <button className={styles.btnSecondary} onClick={closeEdit}>{t('common:cancel','Cancel')}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Manage Students modal */}
+      {/* MANAGE STUDENTS POPUP */}
       {manageOpen && manageLesson && (
-        <div
-          className={styles.modalScrim}
-          onClick={(e)=>{ if (e.target === e.currentTarget) { setManageOpen(false); } }}
-        >
-          <div className={styles.modalCard}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-white">
-                {t('lessons:manageStudents','Manage students')} — {manageLesson.name}
-              </h3>
-              <button className={styles.btn} onClick={()=>setManageOpen(false)} aria-label={t('common:close','Close')!}>✕</button>
-            </div>
+        <div className={styles.modalScrim} onClick={() => setManageOpen(false)}>
+          <div
+            className={styles.modalCard}
+            style={{ maxWidth: 900, width: '100%' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className={styles.cardTitle}>
+              {t('lessons:manageStudentsOf','Students in')} “{manageLesson.name}”
+            </h3>
 
-            {/* Controls */}
-            <div className="flex flex-col md:flex-row md:items-center gap-2 mb-3">
+            <div className={styles.row}>
+              <label className={styles.checkbox}>
+                <input
+                  type="checkbox"
+                  checked={allowDuplicatesInSubject}
+                  onChange={e => setAllowDuplicatesInSubject(e.target.checked)}
+                />
+                {t('lessons:allowDupSubject','Allow duplicates in same subject')}
+              </label>
               <input
                 className={styles.input}
                 placeholder={t('common:search','Search')!}
                 value={searchStudent}
-                onChange={(e)=>setSearchStudent(e.target.value)}
+                onChange={e => setSearchStudent(e.target.value)}
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={allowDuplicatesInSubject}
-                  onChange={(e)=>setAllowDuplicatesInSubject(e.target.checked)}
-                />
-                {manageLessonSubject
-                  ? t('lessons:allowDuplicatesInSubject','Allow students already in this subject’s groups')
-                  : t('lessons:noSubjectFilter','No subject filter (subject not detected)')}
-              </label>
-              <div className="ml-auto text-sm opacity-80">
-                {t('lessons:counts','Pool: {{p}} · Assigned: {{a}}',{ p: poolStudents.length, a: (manageLesson.studentsUserIds||[]).length }) as any}
+            </div>
+
+            <div className={styles.manageGrid}>
+              <div className={styles.manageCol}>
+                <h4>{t('lessons:current','Current')}</h4>
+                <ul className={styles.list}>
+                  {(manageLesson.studentsUserIds || []).map(sid => {
+                    const s = students.find(u => u.id === sid);
+                    const label = s ? (labelFromUser(s) || s.username || s.id) : sid;
+                    if (searchStudent.trim() && !label.toLowerCase().includes(searchStudent.trim().toLowerCase())) {
+                      return null;
+                    }
+                    return (
+                      <li key={sid} className={styles.listItem}>
+                        <span>{label}</span>
+                        <button className={styles.btnSmall} onClick={() => removeStudentFromLesson(manageLesson.id, sid)}>
+                          {t('common:remove','Remove')}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div className={styles.manageCol}>
+                <h4>{t('lessons:add','Add')}</h4>
+                <ul className={styles.list}>
+                  {candidateStudents.map(s => {
+                    const label = labelFromUser(s) || s.username || s.id;
+                    if (searchStudent.trim() && !label.toLowerCase().includes(searchStudent.trim().toLowerCase())) {
+                      return null;
+                    }
+                    const already = (manageLesson.studentsUserIds || []).includes(s.id);
+                    if (already) return null;
+                    return (
+                      <li key={s.id} className={styles.listItem}>
+                        <span>{label}</span>
+                        <button className={styles.btnSmall} onClick={() => addStudentToLesson(manageLesson.id, s.id)}>
+                          {t('common:add','Add')}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             </div>
 
-            {/* One panel with two columns → added appears next to pool */}
-            <div className={styles.panel} style={{ padding: 12 }}>
-              <div className="flex items-center justify-between mb-2">
-                <strong>{t('lessons:studentsPool','Students')}</strong>
-                <div className="flex gap-2">
-                  <button
-                    className={`${styles.btn} ${styles.btnPrimary}`}
-                    onClick={bulkAddPool}
-                    disabled={!poolStudents.length}
-                  >
-                    {t('lessons:addAll','Add all')}
-                  </button>
-                  <button
-                    className={styles.btn}
-                    onClick={bulkRemoveAll}
-                    disabled={!assignedStudents.length}
-                  >
-                    {t('lessons:removeAll','Remove all')}
-                  </button>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 12,
-                  maxHeight: '56vh',
-                  overflow: 'auto',
-                }}
-              >
-                {/* LEFT: Pool */}
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {poolStudents.map(s => (
-                    <div key={s.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{labelFromUser(s)}</div>
-                        {(!allowDuplicatesInSubject && manageLessonSubject && subjectTakenSet.has(s.id)) && (
-                          <div style={{ fontSize:12, opacity:.75 }}>{t('lessons:alreadyInSubject','Already in this subject')}</div>
-                        )}
-                      </div>
-                      <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={()=>addStudentToLesson(s.id)}>
-                        {t('common:add','Add')}
-                      </button>
-                    </div>
-                  ))}
-                  {!poolStudents.length && (
-                    <div style={{ opacity:.7, padding:'6px 0' }}>{t('common:noItems','No items')}</div>
-                  )}
-                </div>
-
-                {/* RIGHT: Assigned */}
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {assignedStudents.map(s => (
-                    <div key={s.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-                      <div><div style={{ fontWeight: 600 }}>{labelFromUser(s)}</div></div>
-                      <button className={`${styles.btn} ${styles.btnDanger}`} onClick={()=>removeStudentFromLesson(s.id)}>
-                        {t('common:remove','Remove')}
-                      </button>
-                    </div>
-                  ))}
-                  {!assignedStudents.length && (
-                    <div style={{ opacity:.7, padding:'6px 0' }}>{t('common:noItems','No items')}</div>
-                  )}
-                </div>
-              </div>
+            <div className={styles.modalActions}>
+              <button className={styles.btn} onClick={() => setManageOpen(false)}>{t('common:done','Done')}</button>
             </div>
-
           </div>
         </div>
       )}
+
+      {toast.show && <div className={styles.toast}>{toast.message}</div>}
     </div>
   );
 }

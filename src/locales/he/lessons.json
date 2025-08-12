@@ -2,10 +2,13 @@
   "manage": "ניהול שיעורים",
   "name": "שם השיעור",
   "teacherIsStudent": "התלמיד הוא המורה",
+  "manageStudents" : "ניהול תלמידים",
   "teacherByUsername": "מורה (לפי שם משתמש)",
   "studentByUsername": "תלמיד (לפי שם משתמש)",
+  "allowDupSubject" : "אפשר נושא כפול",
   "selectTeacher": "בחר מורה…",
   "selectStudent": "בחר תלמיד…",
+  "manageStudentsOf" : "ניהול תלמידים של",
   "add": "הוספת שיעור",
   "adding": "מוסיף…",
   "table": {

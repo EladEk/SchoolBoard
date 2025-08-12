@@ -4,6 +4,7 @@ import {
   serverTimestamp, updateDoc, getDocs
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
+import { useTranslation } from 'react-i18next';
 
 type NewsItem = {
   id: string;
@@ -12,12 +13,13 @@ type NewsItem = {
 };
 
 export default function NewsAdmin() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<NewsItem[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
-  // Live list of announcements (all are news)
+  // Live list
   useEffect(() => {
     const q = query(collection(db, 'announcements'));
     const unsub = onSnapshot(
@@ -34,7 +36,7 @@ export default function NewsAdmin() {
       },
       async (e) => {
         console.error('NewsAdmin onSnapshot error:', e);
-        setErr(e?.message || 'Failed to load news (live). Trying once via getDocs…');
+        setErr(t('news:toasts.loadFailLive'));
         try {
           const once = await getDocs(q);
           const list = once.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as NewsItem[];
@@ -47,40 +49,40 @@ export default function NewsAdmin() {
           setErr(null);
         } catch (e2: any) {
           console.error('NewsAdmin getDocs fallback error:', e2);
-          setErr(e2?.message || 'Failed to load news.');
+          setErr(t('news:toasts.loadFailOnce'));
         }
       }
     );
     return () => unsub();
-  }, []);
+  }, [t]);
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const t = text.trim();
-    if (!t) return;
+    const tText = text.trim();
+    if (!tText) return;
 
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'announcements', editingId), { text: t });
+        await updateDoc(doc(db, 'announcements', editingId), { text: tText });
+        setErr(null);
       } else {
         await addDoc(collection(db, 'announcements'), {
-          text: t,
+          text: tText,
           createdAt: serverTimestamp(),
         });
       }
       setText('');
       setEditingId(null);
-      setErr(null);
     } catch (e: any) {
       console.error('Save failed:', e);
-      setErr(e?.message || 'Save failed');
+      setErr(t('news:toasts.saveFail', { msg: e?.message || 'unknown' }));
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this news item?')) return;
+    if (!confirm(t('common:deleteConfirm'))) return;
     try {
       await deleteDoc(doc(db, 'announcements', id));
       if (editingId === id) {
@@ -89,7 +91,7 @@ export default function NewsAdmin() {
       }
     } catch (e: any) {
       console.error('Delete failed:', e);
-      setErr(e?.message || 'Delete failed');
+      setErr(t('news:toasts.deleteFail', { msg: e?.message || 'unknown' }));
     }
   }
 
@@ -105,7 +107,7 @@ export default function NewsAdmin() {
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <h2 style={{ margin: 0 }}>News</h2>
+      <h2 style={{ margin: 0 }}>{t('news:manage')}</h2>
 
       {err && (
         <div style={{ padding: 10, border: '1px solid #f5c2c7', background: '#f8d7da', color: '#842029', borderRadius: 8 }}>
@@ -116,34 +118,41 @@ export default function NewsAdmin() {
       {/* Add / Edit form */}
       <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 8 }}>
         <label style={{ display: 'grid', gap: 6 }}>
-          <span>Text</span>
+          <span>{t('news:textLabel')}</span>
           <input
             type="text"
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder="News text to show in the ticker"
+            placeholder={t('news:textPlaceholder')!}
             style={{ padding: '10px 12px', border: '1px solid #cfd6e4', borderRadius: 10 }}
           />
         </label>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="submit" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #90caf9', background: '#e3f2fd' }}>
-            {isEditing ? 'Save' : 'Add'}
+          <button
+            type="submit"
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #90caf9', background: '#e3f2fd' }}
+          >
+            {isEditing ? t('common:save') : t('common:add')}
           </button>
           {isEditing && (
-            <button type="button" onClick={cancelEdit} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cfd6e4', background: '#fff' }}>
-              Cancel
+            <button
+              type="button"
+              onClick={cancelEdit}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cfd6e4', background: '#fff' }}
+            >
+              {t('common:cancel')}
             </button>
           )}
         </div>
       </form>
 
-      {/* Current news list with Edit/Delete */}
+      {/* Current news list */}
       <div style={{ border: '1px solid #e3e7ef', borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead style={{ background: '#f3f6ff' }}>
             <tr>
-              <th style={{ textAlign: 'right', padding: 10, borderBottom: '1px solid #e3e7ef' }}>Text</th>
-              <th style={{ width: 120, borderBottom: '1px solid #e3e7ef' }} />
+              <th style={{ textAlign: 'right', padding: 10, borderBottom: '1px solid #e3e7ef' }}>{t('news:table.text')}</th>
+              <th style={{ width: 120, borderBottom: '1px solid #e3e7ef' }}>{t('common:actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -159,14 +168,14 @@ export default function NewsAdmin() {
                     <button
                       onClick={() => startEdit(n)}
                       style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cfd6e4', background: '#fff', cursor: 'pointer' }}
-                      title="Edit"
+                      title={t('common:edit')!}
                     >
                       ✎
                     </button>
                     <button
                       onClick={() => handleDelete(n.id)}
                       style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#ffebee', cursor: 'pointer' }}
-                      title="Delete"
+                      title={t('common:delete')!}
                     >
                       🗑
                     </button>
@@ -174,10 +183,10 @@ export default function NewsAdmin() {
                 </td>
               </tr>
             ))}
-            {items.length === 0 && (
+            {!items.length && (
               <tr>
                 <td colSpan={2} style={{ padding: 16, textAlign: 'center', color: '#667085' }}>
-                  No news yet. Add one above.
+                  {t('news:noItems')}
                 </td>
               </tr>
             )}

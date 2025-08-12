@@ -13,5 +13,8 @@
   "close": "סגור",
   "downloadTemplate": "הורד תבנית",
   "export": "ייצוא",
-  "import": "ייבוא"
+  "import": "ייבוא",
+  "template": "תבנית",
+  "clear": "נקה",
+  "search" : "חפש"
 }

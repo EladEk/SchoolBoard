@@ -1,0 +1,15 @@
+{
+  "manage": "Manage News",
+  "textLabel": "News Text",
+  "textPlaceholder": "Enter news text to show in the ticker",
+  "table": {
+    "text": "Text"
+  },
+  "noItems": "No news yet. Add one above.",
+  "toasts": {
+    "loadFailLive": "Failed to load news (live). Trying once...",
+    "loadFailOnce": "Failed to load news.",
+    "saveFail": "Save failed: {{msg}}",
+    "deleteFail": "Delete failed: {{msg}}"
+  }
+}

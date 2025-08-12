@@ -1,73 +1,169 @@
-.wrapper {
+/* ---------- Page shell ---------- */
+.wrap {
   padding: 1rem;
 }
 
-.actionBar {
+.header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card {
+  background: #2a2a2a;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18), 0 2px 10px rgba(0,0,0,.12);
+  margin-bottom: 16px;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px;
+}
+
+/* ---------- Actions / Buttons ---------- */
+.actions {
+  display: flex;
+  gap: 8px;
   flex-wrap: wrap;
-  gap: 0.5rem;
+}
+
+.btn,
+.btnSecondary,
+.btnSmall,
+.btnSmallDanger,
+.btnDanger,
+.btnPrimary {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform .06s ease, opacity .15s ease, background-color .15s ease, border-color .15s ease;
+  user-select: none;
+}
+
+.btn:active,
+.btnSecondary:active,
+.btnSmall:active,
+.btnSmallDanger:active {
+  transform: translateY(1px);
 }
 
 .btn {
   background-color: #3b3b3b;
-  color: white;
-  border: none;
-  padding: 0.5rem 0.8rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s ease;
+  color: #fff;
 }
-.btn:hover {
-  background-color: #4d4d4d;
+.btn:hover { background-color: #4d4d4d; }
+
+.btnSecondary {
+  background: transparent;
+  color: #d7e3ff;
+  border: 1px solid rgba(125, 165, 255, 0.35);
 }
+.btnSecondary:hover {
+  border-color: rgba(125, 165, 255, 0.65);
+}
+
 .btnPrimary {
   background-color: #0078d4;
+  color: #fff;
 }
-.btnPrimary:hover {
-  background-color: #0063b1;
-}
+.btnPrimary:hover { background-color: #0063b1; }
+
 .btnDanger {
   background-color: #b91c1c;
+  color: #fff;
 }
-.btnDanger:hover {
-  background-color: #991b1b;
+.btnDanger:hover { background-color: #991b1b; }
+
+.btnSmall {
+  background: #3b3b3b;
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+}
+.btnSmall:hover { background: #4d4d4d; }
+
+.btnSmallDanger {
+  background: #b91c1c;
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+}
+.btnSmallDanger:hover { background: #991b1b; }
+
+/* ---------- Form ---------- */
+.form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .input, .select {
   background-color: #1f1f1f;
   border: 1px solid #3b3b3b;
-  padding: 0.4rem 0.6rem;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
   color: white;
   width: 100%;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 .input:focus, .select:focus {
   outline: none;
   border-color: #0078d4;
 }
 
-.panel {
-  background-color: #2a2a2a;
-  border-radius: 8px;
+.label {
+  color: #bfc6d1;
+  font-size: 0.85rem;
+  margin-bottom: -4px;
 }
 
+.checkbox {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #d3dae6;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- Table ---------- */
 .tableWrap {
   overflow-x: auto;
   margin-top: 1rem;
 }
+
 .table {
   width: 100%;
   border-collapse: collapse;
   background-color: #1f1f1f;
+  border-radius: 10px;
+  overflow: hidden;
 }
 .table th, .table td {
   border: 1px solid #3b3b3b;
-  padding: 0.5rem;
+  padding: 10px;
   text-align: left;
   color: white;
 }
@@ -76,44 +172,54 @@
   font-weight: 600;
 }
 
+/* ---------- Toast ---------- */
 .toast {
-  padding: 0.5rem 0.8rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  margin-top: 12px;
   font-size: 0.9rem;
-}
-.toastSuccess {
-  background-color: #065f46;
-  color: white;
-}
-.toastError {
-  background-color: #991b1b;
-  color: white;
-}
-.toastInfo {
-  background-color: #1e40af;
-  color: white;
+  background: #1e40af;
+  color: #fff;
 }
 
+/* ---------- File input (hidden) ---------- */
 .fileInputHidden { display: none; }
 
+/* ---------- Modal (popup) ---------- */
+@keyframes popupIn {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 .modalScrim {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-color: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
+  padding: 20px;
 }
+
 .modalCard {
   background-color: #2a2a2a;
-  padding: 1rem;
-  border-radius: 8px;
-  max-width: 500px;
+  padding: 16px;
+  border-radius: 10px;
   width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow: auto;
+  animation: popupIn .14s ease-out;
+  box-shadow: 0 14px 40px rgba(0,0,0,.35), 0 2px 12px rgba(0,0,0,.25);
 }
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ---------- Responsive ---------- */
+/* (No special wide modal needed here — edit is compact) */
