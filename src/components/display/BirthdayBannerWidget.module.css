@@ -1,0 +1,171 @@
+/* BirthdayBannerWidget.module.css */
+
+/* Full-screen transparent overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 400ms ease both;
+  pointer-events: none; /* display-only */
+}
+
+/* Glassy card */
+.card {
+  width: min(1100px, 92vw);
+  max-height: min(78vh, 820px);
+  border-radius: 28px;
+  padding: clamp(14px, 2.2vw, 28px);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.75), rgba(255,255,255,.55)),
+    linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.35));
+  border: 3px solid rgba(255,255,255,.75);
+  box-shadow:
+    0 18px 60px rgba(0,0,0,.35),
+    inset 0 2px 0 rgba(255,255,255,.6);
+  color: #1f2a44;
+  overflow: hidden;
+  pointer-events: auto; /* allow scroll if needed */
+}
+
+/* Header */
+.header {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+  margin-bottom: clamp(8px, 1.6vw, 16px);
+}
+
+.title {
+  font-family: "Fredoka", "Comic Sans MS", system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  font-weight: 900;
+  font-size: clamp(26px, 3.6vw, 46px);
+  line-height: 1.05;
+  letter-spacing: .2px;
+  color: #0f172a;
+  text-shadow: 0 2px 0 rgba(255,255,255,.6);
+  display: inline-flex;
+  align-items: center;
+  gap: .5ch;
+}
+
+.title .emoji {
+  display: inline-block;
+  transform-origin: center;
+  animation: bounce 1.6s ease-in-out infinite;
+}
+
+.subtitle {
+  font-size: clamp(13px, 1.6vw, 18px);
+  color: #334155;
+  opacity: .9;
+}
+
+/* Grid of birthday kids */
+.grid {
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax(180px, 1fr) );
+  gap: clamp(10px, 1.6vw, 16px);
+  align-items: stretch;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+/* Kid card */
+.kid {
+  position: relative;
+  background: linear-gradient(180deg, #fff, #f8fbff);
+  border: 2px solid rgba(16,24,40,.08);
+  border-radius: 20px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 10px 22px rgba(31,42,68,.08);
+  animation: fadeInUp 500ms ease both;
+}
+.kid:nth-child(odd) { background: linear-gradient(180deg, #fff, #fff7fd); }
+.kid:hover { transform: translateY(-2px); transition: transform .18s ease; }
+
+/* Confetti dots */
+.kid::after, .kid::before {
+  content: "";
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 999px;
+  opacity: .9;
+}
+.kid::after { top: 8px; inset-inline-end: 8px; background: #FFC6FF; animation: float 3.8s ease-in-out infinite; }
+.kid::before{ bottom: 8px; inset-inline-start: 8px; background: #BDE0FE; animation: float 4.4s ease-in-out infinite reverse; }
+
+/* Avatar */
+.avatar {
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: 50%;
+  background: conic-gradient(from 210deg, #BDE0FE, #FFF3B0, #FFC6FF, #BDE0FE);
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,.12);
+}
+
+/* Text */
+.meta { display: grid; gap: 4px; }
+.name {
+  font-weight: 800;
+  font-size: clamp(16px, 2vw, 20px);
+  color: #0b1220;
+  letter-spacing: .2px;
+}
+.grade { font-size: 13px; color: #475569; }
+
+/* Birthday tag */
+.tag {
+  justify-self: start;
+  margin-top: 2px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #40f09e22;
+  border: 1px solid #40f09e55;
+  color: #065f46;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tag .cake { filter: drop-shadow(0 1px 0 #fff); }
+
+/* Footer (optional) */
+.footer {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #475569;
+}
+
+/* RTL */
+:global(html[dir="rtl"]) .grid { direction: rtl; }
+:global(html[dir="rtl"]) .kid { grid-template-columns: 1fr 56px; }
+:global(html[dir="rtl"]) .avatar { order: 2; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0) rotate(-2deg) }
+  50%      { transform: translateY(-4px) rotate(2deg) }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) }
+  50%      { transform: translateY(-5px) }
+}
