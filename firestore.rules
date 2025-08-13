@@ -2,44 +2,86 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // PUBLIC READ (hallway screens need to read freely)
+    // ---- Helpers ----
+    function isAuthed() {
+      return request.auth != null;
+    }
+    function role() {
+      // requires you to set a custom claim { role: "admin" | "teacher" | "student" | "kiosk" }
+      return isAuthed() ? (request.auth.token.role != null ? request.auth.token.role : "") : "";
+    }
+    function isAdmin()   { return isAuthed() && role() == "admin"; }
+    function isTeacher() { return isAuthed() && role() == "teacher"; }
+    function isStudent() { return isAuthed() && role() == "student"; }
+    function isKiosk()   { return isAuthed() && role() == "kiosk"; }
+
+    // ---- PUBLIC DISPLAY NEEDS ----
+    // If your hallway display is unauthenticated, it must be able to read some data.
+    // Keep reads open (OR lock down and have the display sign in with a Kiosk service account).
+    // Writes must never be public.
+
+    // CLASSES
     match /classes/{id} {
-      allow read: if true;
-      allow write: if true;   // frontend enforces "admin" in UI
+      allow read: if true;            // hallway can read
+      allow write: if isAdmin();      // ONLY admins can create/update/delete
     }
+
+    // LESSONS
     match /lessons/{id} {
-      allow read: if true;
-      allow write: if true;   // frontend enforces "admin" in UI
+      allow read: if true;            // hallway can read
+      allow write: if isAdmin();
+      // If you want teachers to create their own lessons, you can relax to:
+      // allow create: if isTeacher() || isAdmin();
+      // allow update, delete: if isAdmin();
     }
+
+    // TIMETABLE ENTRIES
     match /timetableEntries/{id} {
-      allow read: if true;
-      allow write: if true;   // frontend enforces "admin" in UI
-    }
-    match /announcements/{id} {
-      allow read: if true;
-      allow write: if true;   // frontend enforces "admin" in UI
-    }
-
-    // CUSTOM AUTH USERS COLLECTION (no Firebase Auth)
-    // Your app uses /appUsers with local hashing + localStorage.
-    match /appUsers/{docId} {
-      allow read: if true;
-      allow write: if true;   // needed for Admin → Create/Delete user
+      allow read: if true;            // hallway can read
+      allow write: if isAdmin();
+      // Optionally allow teachers to place their OWN lessons only:
+      // allow create, update: if isTeacher() && isAuthed() &&
+      //   request.resource.data.lessonId == resource.data.lessonId && // or validate on create
+      //   // Optionally check lesson's teacher id matches the caller (requires denormalized teacherId on lesson):
+      //   exists(/databases/$(database)/documents/lessons/$(request.resource.data.lessonId)) &&
+      //   get(/databases/$(database)/documents/lessons/$(request.resource.data.lessonId)).data.teacherUserId == request.auth.uid
+      // ;
+      // allow delete: if isAdmin();
     }
 
-    // OPTIONAL/LEGACY: if you still have these in the DB, keep them readonly:
-    match /users/{userId} {
-      allow read: if true;    // screens may still read something here
-      allow write: if false;  // disable, because request.auth is null
+    // USERS (appUsers) — be careful with PII exposure.
+    // The display page currently queries student names; if you keep this public, anyone can read them.
+    // Recommended: lock reads and have the kiosk sign in. If you must keep it public, leave read:true.
+    match /appUsers/{uid} {
+      // Safer option (recommended):
+      // allow read: if isAdmin() || isTeacher() || (isStudent() && request.auth.uid == uid) || isKiosk();
+      // If your hallway is unauthenticated today, temporarily:
+      allow read: if true;
+
+      // Writes:
+      allow create, update, delete: if isAdmin() || request.auth.uid == uid;
+      // (Students can edit their own minimal profile only if you validate allowed fields with diff checks.)
     }
+
+    // Any other admin-only configs you might have:
+    match /advisories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /news/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Invites, tokens, etc. (example locked down)
     match /invites/{inviteId} {
-      allow read: if true;    // by-id lookup is fine
-      allow write: if false;  // disable without Firebase Auth
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
 
-    // Catch-all: allow public reads; block writes elsewhere.
+    // Default: block writes everywhere else; (optionally) allow reads if you truly need it.
     match /{document=**} {
-      allow read: if true;
+      allow read: if false;  // tighten default; whitelist above
       allow write: if false;
     }
   }

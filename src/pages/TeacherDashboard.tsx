@@ -1,4 +1,4 @@
-// src/pages/TeacherDashboard.tsx – fixed: remove unsupported teacherId props
+// src/pages/TeacherDashboard.tsx
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Header from '../components/Header';
@@ -6,8 +6,9 @@ import TeacherTimetableView from '../components/lessons/TeacherTimetableView';
 import TeacherLessons from '../components/teacher/TeacherLessons';
 import TeacherStudentPlans from '../components/teacher/TeacherStudentPlans';
 import './TeacherDashboard.css';
+import { withRole } from '../utils/requireRole';
 
-export default function TeacherDashboard() {
+function TeacherDashboard() {
   const { t } = useTranslation(['teacher', 'studentPlans']);
   const [tab, setTab] = useState<'view' | 'edit' | 'students'>('view');
 
@@ -66,3 +67,5 @@ export default function TeacherDashboard() {
     </div>
   );
 }
+
+export default withRole(TeacherDashboard, ['teacher', 'admin']);

@@ -16,7 +16,7 @@ export default function Header({
   navMode = 'full',
 }: HeaderProps) {
   const navigate = useNavigate();
-  const logout = () => { localStorage.removeItem('session'); navigate('/'); };
+  const logout = () => { localStorage.clear(); navigate('/'); };
 
   return (
     <header className={styles.wrapper}>

@@ -1,0 +1,17 @@
+{
+  "title": "התחברות",
+  "subtitle": "הענס שם משתמש",
+  "usernameLabel": "שם משתמש / שם תצוגה / אימייל מנהל",
+  "usernamePlaceholder": "לדוגמה elad2",
+  "passwordLabel": "סיסמה",
+  "signIn": "התחבר",
+  "signingIn": "מתחבר…",
+  "errors": {
+    "adminProfileMissing": "פרופיל מנהל לא נמצא תחת ‎/users/{uid}‎",
+    "notAdmin": "החשבון הזה אינו מנהל.",
+    "userNotFound": "המשתמש לא נמצא",
+    "noPasswordHash": "רשומת המשתמש חסרה סיסמה מוצפנת",
+    "wrongPassword": "סיסמה שגויה",
+    "generic": "ההתחברות נכשלה"
+  }
+}

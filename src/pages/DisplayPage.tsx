@@ -9,6 +9,7 @@ import SidePanelWidget from '../components/display/SidePanelWidget';
 import './DisplayPage.css';
 import ClockWidget from '../components/display/ClockWidget';
 import { useTranslation } from 'react-i18next';
+import { withRole } from '../utils/requireRole';
 
 // -------- Types --------
 type AppUser = {
@@ -36,7 +37,7 @@ type Entry = {
   endMinutes: number;
 };
 
-// -------- Time helpers (support testTime & testDay) --------
+// -------- Time helpers --------
 function parseHHMM(v?: string | null): number | null {
   if (!v) return null;
   const m = String(v).match(/^(\d{1,2}):(\d{2})$/);
@@ -80,7 +81,7 @@ function findClassByAnyId(classes: SchoolClass[], anyId: string) {
   return classes.find(c => c.id === anyId || (c.classId && c.classId === anyId)) || null;
 }
 
-export default function DisplayPage() {
+function DisplayPage() {
   const { t } = useTranslation('display');
 
   // live "now"
@@ -222,7 +223,7 @@ export default function DisplayPage() {
       <NewsTickerWidget />
       <BirthdayBannerWidget />
 
-      {/* Header: colorful title + smaller clock */}
+      {/* Header */}
       <div className="display-header">
         <h1 className="display-title fancy-title">
           {t('title', 'School Schedule')}
@@ -232,7 +233,7 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* Main layout: big table + side panel */}
+      {/* Main layout */}
       <div className="display-layout">
         <BigTableWidget
           entries={entries || []}
@@ -246,7 +247,7 @@ export default function DisplayPage() {
         />
       </div>
 
-      {/* Force 3 columns for many students using a scoped style */}
+      {/* Force 3 columns for many students */}
       {studentsCols === 3 && (
         <style>
           {`.now-students { grid-template-columns: repeat(3, 1fr) !important; }`}
@@ -255,3 +256,5 @@ export default function DisplayPage() {
     </div>
   );
 }
+
+export default withRole(DisplayPage, ['kiosk', 'admin']);

@@ -1,3 +1,4 @@
+// src/firebase/app.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -11,6 +12,13 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
+
+// ↓↓↓ Add this for sanity while you test ↓↓↓
+if (typeof window !== 'undefined') {
+  // Helps catch wrong env files or undefined vars
+  console.log('[Firebase] projectId:', firebaseConfig.projectId,
+              'authDomain:', firebaseConfig.authDomain);
+}
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

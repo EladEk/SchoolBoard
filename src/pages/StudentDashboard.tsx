@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { SLOTS, DAY_ORDER } from '../constants/timetable';
 import Header from '../components/Header';
 import styles from './StudentDashboard.module.css';
+import { withRole } from '../utils/requireRole';
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
 
@@ -82,7 +83,7 @@ function chunk<T>(arr: T[], size = 10) {
   return out;
 }
 
-export default function StudentDashboard() {
+function StudentDashboard() {
   const { t, i18n } = useTranslation(['timetable', 'studentPlans', 'common']);
   const [me, setMe] = useState<AppUser | null>(null);
 
@@ -233,7 +234,7 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Advisor (responsible teacher) */}
+          {/* Advisor */}
           <div className={styles.advisorLabel}>
             {t('studentPlans:advisor', 'Responsible teacher')}: {' '}
             <strong>
@@ -287,3 +288,5 @@ export default function StudentDashboard() {
     </div>
   );
 }
+
+export default withRole(StudentDashboard, ['student', 'admin']);

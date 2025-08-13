@@ -1,14 +1,35 @@
+// src/pages/LoginPage.tsx
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { db } from '../firebase/app';
-import * as bcrypt from 'bcryptjs';
+
+import { auth, db } from '../firebase/app';
+import {
+  signInWithEmailAndPassword,
+  getIdTokenResult,
+} from 'firebase/auth';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  where,
+} from 'firebase/firestore';
+
+import * as bcrypt from 'bcryptjs'; // ensure `npm i bcryptjs`
 import styles from './LoginPage.module.css';
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
 
-function isEmail(v: string) { return v.includes('@'); }
+function isEmail(v: string) {
+  return /\S+@\S+\.\S+/.test(v);
+}
+function normalizeRole(v: unknown): Role | '' {
+  if (typeof v !== 'string') return '';
+  const r = v.trim().toLowerCase();
+  return (['admin', 'teacher', 'student', 'kiosk'] as const).includes(r as Role) ? (r as Role) : '';
+}
 function isBcryptHash(hash?: string) {
   if (!hash || typeof hash !== 'string') return false;
   return hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$');
@@ -21,120 +42,225 @@ async function sha256Hex(input: string): Promise<string> {
   return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/* ---------- Role resolution helpers ---------- */
+
+async function resolveRoleFromCollection(
+  coll: 'appUsers' | 'users',
+  ident: { uid?: string; email?: string; usernameLower?: string }
+): Promise<Role | ''> {
+  const { uid, email, usernameLower } = ident;
+
+  // 1) by doc id
+  if (uid) {
+    try {
+      const s = await getDoc(doc(db, coll, uid));
+      if (s.exists()) {
+        const d = s.data() as any;
+        const role =
+          normalizeRole(d?.role) ||
+          (coll === 'users' && d?.isAdmin ? 'admin' : '');
+        if (role) return role;
+      }
+    } catch {}
+  }
+
+  // 2) by uid field
+  if (uid) {
+    try {
+      const q1 = query(collection(db, coll), where('uid', '==', uid), limit(1));
+      const s1 = await getDocs(q1);
+      if (!s1.empty) {
+        const d = s1.docs[0].data() as any;
+        const role =
+          normalizeRole(d?.role) ||
+          (coll === 'users' && d?.isAdmin ? 'admin' : '');
+        if (role) return role;
+      }
+    } catch {}
+  }
+
+  // 3) by email field
+  if (email) {
+    try {
+      const q2 = query(collection(db, coll), where('email', '==', email), limit(1));
+      const s2 = await getDocs(q2);
+      if (!s2.empty) {
+        const d = s2.docs[0].data() as any;
+        const role =
+          normalizeRole(d?.role) ||
+          (coll === 'users' && d?.isAdmin ? 'admin' : '');
+        if (role) return role;
+      }
+    } catch {}
+  }
+
+  // 4) by usernameLower (for custom usernames)
+  if (usernameLower) {
+    try {
+      const q3 = query(collection(db, coll), where('usernameLower', '==', usernameLower), limit(1));
+      const s3 = await getDocs(q3);
+      if (!s3.empty) {
+        const d = s3.docs[0].data() as any;
+        const role =
+          normalizeRole(d?.role) ||
+          (coll === 'users' && d?.isAdmin ? 'admin' : '');
+        if (role) return role;
+      }
+    } catch {}
+  }
+
+  return '';
+}
+
+async function resolveRole(ident: { uid?: string; email?: string; usernameLower?: string }): Promise<Role | ''> {
+  const r1 = await resolveRoleFromCollection('appUsers', ident);
+  if (r1) return r1;
+  return resolveRoleFromCollection('users', ident);
+}
+
+/* ---------- Custom-auth (username) lookup ---------- */
+
+async function findAppUserByIdentifier(identifierRaw: string) {
+  const identifier = identifierRaw.trim();
+  const lower = identifier.toLowerCase();
+
+  // usernameLower
+  let snap = await getDocs(query(collection(db, 'appUsers'), where('usernameLower', '==', lower), limit(1)));
+  if (!snap.empty) return snap.docs[0];
+
+  // username (exact)
+  snap = await getDocs(query(collection(db, 'appUsers'), where('username', '==', identifier), limit(1)));
+  if (!snap.empty) return snap.docs[0];
+
+  // displayNameLower
+  snap = await getDocs(query(collection(db, 'appUsers'), where('displayNameLower', '==', lower), limit(1)));
+  if (!snap.empty) return snap.docs[0];
+
+  // email (only if input is email)
+  if (isEmail(identifier)) {
+    snap = await getDocs(query(collection(db, 'appUsers'), where('email', '==', identifier), limit(1)));
+    if (!snap.empty) return snap.docs[0];
+  }
+
+  return null;
+}
+
+/* ---------- Component ---------- */
+
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [displayNameOrEmail, setDisplayNameOrEmail] = useState('');
+  const [idOrEmail, setIdOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = useMemo(
-    () => displayNameOrEmail.trim().length > 0 && password.length > 0 && !submitting,
-    [displayNameOrEmail, password, submitting]
+    () => idOrEmail.trim().length > 0 && password.length > 0 && !submitting,
+    [idOrEmail, password, submitting]
   );
 
-  async function loginWithFirebaseAuth(email: string, pass: string) {
-    const auth = getAuth();
+  async function routeByRole(role: Role) {
+    switch (role) {
+      case 'admin':   navigate('/admin'); break;
+      case 'teacher': navigate('/teacher'); break;
+      case 'student': navigate('/student'); break;
+      case 'kiosk':   navigate('/display'); break;
+      default:        navigate('/unauthorized'); break;
+    }
+  }
+
+  /* ----- Email (Firebase Auth) flow ----- */
+  async function loginWithEmail(email: string, pass: string) {
     const cred = await signInWithEmailAndPassword(auth, email, pass);
     const uid = cred.user.uid;
 
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (!userDoc.exists()) {
-      throw new Error('Admin profile not found under /users/{uid}');
-    }
-    const data = userDoc.data() as any;
-    const role: Role = (data.role || 'admin') as Role;
+    // Prefer custom claims for role
+    let role: Role | '' = '';
+    try {
+      const tok = await getIdTokenResult(cred.user, true);
+      role = normalizeRole(tok.claims?.role);
+    } catch {}
 
-    if (role !== 'admin') {
-      throw new Error('This account is not an admin.');
+    // Fallback: resolve role from Firestore
+    if (!role) {
+      role = await resolveRole({ uid, email });
+      if (!role) throw new Error('No role found for this user. Ask admin to set role or claims.');
     }
 
+    // Save minimal session (no role; guards verify from DB/claims)
     const session = {
       uid,
-      displayName: data.displayName || cred.user.displayName || email,
       email: cred.user.email || email,
-      role,
+      displayName: cred.user.displayName || email,
       loggedInAt: Date.now(),
-      mode: 'firebase-auth',
+      mode: 'firebase-auth' as const,
     };
     localStorage.setItem('session', JSON.stringify(session));
-    navigate('/admin');
+
+    await routeByRole(role);
   }
 
-  async function findAppUser(inputRaw: string) {
-    const input = inputRaw.trim();
-    const lower = input.toLowerCase();
-
-    let snap = await getDocs(query(collection(db, 'appUsers'), where('username', '==', input), limit(1)));
-    if (!snap.empty) return snap.docs[0];
-
-    snap = await getDocs(query(collection(db, 'appUsers'), where('usernameLower', '==', lower), limit(1)));
-    if (!snap.empty) return snap.docs[0];
-
-    snap = await getDocs(query(collection(db, 'appUsers'), where('displayName', '==', input), limit(1)));
-    if (!snap.empty) return snap.docs[0];
-
-    snap = await getDocs(query(collection(db, 'appUsers'), where('displayNameLower', '==', lower), limit(1)));
-    if (!snap.empty) return snap.docs[0];
-
-    if (isEmail(input)) {
-      snap = await getDocs(query(collection(db, 'appUsers'), where('email', '==', input), limit(1)));
-      if (!snap.empty) return snap.docs[0];
-    }
-    return null;
-  }
-
-  async function loginWithCustomAuth(identifier: string, pass: string) {
-    const docRef: any = await findAppUser(identifier);
+  /* ----- Username (custom Firestore) flow ----- */
+  async function loginWithUsername(identifier: string, pass: string) {
+    const docRef = await findAppUserByIdentifier(identifier);
     if (!docRef) throw new Error('User not found');
 
     const data = docRef.data() as any;
     const storedHash: string | undefined = data.passwordHash;
     const storedSalt: string | undefined = data.salt;
 
-    if (!storedHash) throw new Error('User record missing password hash');
+    if (!storedHash) throw new Error('User record missing password');
 
     let ok = false;
     if (isBcryptHash(storedHash)) {
       ok = bcrypt.compareSync(pass, storedHash);
     } else {
+      // legacy SHA-256(salt + password)
       const candidate = await sha256Hex((storedSalt || '') + pass);
       ok = candidate === storedHash;
     }
     if (!ok) throw new Error('Wrong password');
 
-    const role: Role = (data.role || 'student') as Role;
+    // Build session — IMPORTANT: include the appUsers doc id and usernameLower
     const session = {
-      uid: docRef.id,
-      displayName: data.displayName || data.username || `${data.firstName ?? ''} ${data.lastName ?? ''}`.trim() || identifier,
-      role,
+      uid: docRef.id, // <-- appUsers document id
+      email: data.email || undefined,
+      username: data.username || undefined,
+      usernameLower: (data.usernameLower || data.username || '').toString().toLowerCase() || undefined,
+      displayName:
+        data.displayName ||
+        data.username ||
+        `${data.firstName ?? ''} ${data.lastName ?? ''}`.trim() ||
+        identifier,
       loggedInAt: Date.now(),
-      mode: 'custom-firestore',
+      mode: 'custom-firestore' as const,
     };
     localStorage.setItem('session', JSON.stringify(session));
 
-    switch (role) {
-      case 'admin': navigate('/admin'); break;
-      case 'teacher': navigate('/teacher'); break;
-      case 'student': navigate('/student'); break;
-      case 'kiosk': navigate('/display'); break;
-      default: navigate('/');
-    }
+    // Resolve role from DB (appUsers → users) using uid/email/usernameLower
+    const role = await resolveRole({
+      uid: session.uid,
+      email: session.email,
+      usernameLower: session.usernameLower,
+    });
+    if (!role) throw new Error('No role found for this user. Ask admin to set role.');
+
+    await routeByRole(role);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    localStorage.clear();
     if (!canSubmit) return;
     setError(null);
     setSubmitting(true);
 
-    const input = displayNameOrEmail.trim();
-
     try {
+      const input = idOrEmail.trim();
       if (isEmail(input)) {
-        await loginWithFirebaseAuth(input, password);
+        await loginWithEmail(input, password);
       } else {
-        await loginWithCustomAuth(input, password);
+        await loginWithUsername(input, password);
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -148,18 +274,18 @@ export default function LoginPage() {
     <div className={styles.page}>
       <form onSubmit={handleSubmit} className={styles.card}>
         <h1 className={styles.title}>Sign in</h1>
-        <p className={styles.subtitle}>Admins log in with email. Others can use username/display name.</p>
+        <p className={styles.subtitle}>Use email (Firebase) or username (custom)</p>
 
         <div className={styles.form}>
           <div>
-            <label className={styles.label}>Username / Display name / Admin email</label>
+            <label className={styles.label}>Email or Username</label>
             <input
               type="text"
-              value={displayNameOrEmail}
-              onChange={(e) => setDisplayNameOrEmail(e.target.value)}
+              value={idOrEmail}
+              onChange={(e) => setIdOrEmail(e.target.value)}
               className={styles.input}
               autoComplete="username"
-              placeholder="e.g. elad2 — or admin email"
+              placeholder="e.g. eladek@gmail.com or davidco"
             />
           </div>
 

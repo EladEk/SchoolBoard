@@ -38,11 +38,15 @@ import levelsMover_he from './locales/he/levelsMover.json';
 import display_en from './locales/en/display.json';
 import display_he from './locales/he/display.json';
 
-// ---- news namespace  ----
+// ---- news namespace ----
 import news_en from './locales/en/news.json';
 import news_he from './locales/he/news.json';
 
-const ns: string[] = [
+// ---- login namespace (NEW) ----
+import login_en from './locales/en/login.json';
+import login_he from './locales/he/login.json';
+
+const ns = [
   'common',
   'timetable',
   'teacher',
@@ -54,16 +58,24 @@ const ns: string[] = [
   'studentPlans',
   'levelsMover',
   'display',
-  'news' 
-];
+  'news',
+  'login', // NEW
+] as const;
 
-i18n
+function applyDirAndLang(lng?: string) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dir = i18n.dir(lng);
+  document.documentElement.lang = lng || i18n.language;
+}
+
+void i18n
   .use(initReactI18next)
   .init({
     lng: 'he',
     fallbackLng: 'en',
-    ns,
+    ns: ns as unknown as string[], // appease TS
     defaultNS: 'common',
+    fallbackNS: 'common',
     resources: {
       en: {
         common: common_en,
@@ -77,7 +89,8 @@ i18n
         studentPlans: studentPlans_en,
         levelsMover: levelsMover_en,
         display: display_en,
-        news: news_en 
+        news: news_en,
+        login: login_en,
       },
       he: {
         common: common_he,
@@ -91,25 +104,22 @@ i18n
         studentPlans: studentPlans_he,
         levelsMover: levelsMover_he,
         display: display_he,
-        news: news_he 
-      }
+        news: news_he,
+        login: login_he,
+      },
     },
     interpolation: { escapeValue: false },
     debug: false,
-    returnEmptyString: false
+    returnEmptyString: false,
+    // Optionally: load language only ('he-IL' -> 'he')
+    // load: 'languageOnly',
   })
   .then(() => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.dir = i18n.dir();
-      document.documentElement.lang = i18n.language;
-    }
+    applyDirAndLang();
   });
 
 i18n.on('languageChanged', (lng) => {
-  if (typeof document !== 'undefined') {
-    document.documentElement.dir = i18n.dir(lng);
-    document.documentElement.lang = lng;
-  }
+  applyDirAndLang(lng);
 });
 
 export default i18n;
