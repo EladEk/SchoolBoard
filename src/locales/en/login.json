@@ -1,17 +1,24 @@
 {
-  "title": "Login",
-  "subtitle": "Enter username",
-  "usernameLabel": "Username / Display name / Admin email",
-  "usernamePlaceholder": "For example: elad2",
-  "passwordLabel": "Password",
-  "signIn": "Sign in",
-  "signingIn": "Signing in…",
+  "title": "Sign in",
+  "subtitle": "Use username",
+  "fields": {
+    "identifier": {
+      "label": "Email or Username",
+      "placeholder": "e.g. user@gmail.com or davidco"
+    },
+    "password": {
+      "label": "Password",
+      "placeholder": "Your password"
+    }
+  },
+  "actions": { "signIn": "Sign in" },
+  "states": { "signingIn": "Signing in…" },
   "errors": {
-    "adminProfileMissing": "Admin profile not found under /users/{uid}",
-    "notAdmin": "This account is not an admin.",
     "userNotFound": "User not found",
-    "noPasswordHash": "User record missing password hash",
+    "missingPassword": "User record missing password",
     "wrongPassword": "Wrong password",
+    "noRole": "No role found for this user. Ask admin to set role or claims.",
     "generic": "Login failed"
-  }
+    },
+  "aria": { "form": "Login form" }
 }

@@ -3,12 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { auth, db } from '../firebase/app';
 import { onAuthStateChanged, getIdTokenResult, User } from 'firebase/auth';
-import {
-  doc, getDoc, collection, query, where, limit, getDocs,
-} from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
 
 export type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
-
 type Phase = 'checking' | 'allowed' | 'denied' | 'none';
 
 function normalizeRole(v: unknown): Role | '' {
@@ -25,15 +22,10 @@ function getSession():
   try { return JSON.parse(localStorage.getItem('session') || 'null'); } catch { return null; }
 }
 
-/* ---------------- Core resolvers ---------------- */
-
-async function roleFromCollection(
-  coll: 'appUsers' | 'users',
-  ident: Ident
-): Promise<Role | ''> {
+async function roleFromCollection(coll: 'appUsers' | 'users', ident: Ident): Promise<Role | ''> {
   const { uid, email, usernameLower } = ident;
 
-  // 1) doc id
+  // 1) by doc id
   if (uid) {
     try {
       const s = await getDoc(doc(db, coll, uid));
@@ -44,11 +36,10 @@ async function roleFromCollection(
       }
     } catch {}
   }
-
-  // 2) uid field
+  // 2) by uid field
   if (uid) {
     try {
-      const q1 = query(collection(db, coll), where('uid', '==', uid), limit(1));
+      const q1 = query(collection(db, coll), where('uid','==',uid), limit(1));
       const s1 = await getDocs(q1);
       if (!s1.empty) {
         const d = s1.docs[0].data() as any;
@@ -57,11 +48,10 @@ async function roleFromCollection(
       }
     } catch {}
   }
-
-  // 3) email field
+  // 3) by email field
   if (email) {
     try {
-      const q2 = query(collection(db, coll), where('email', '==', email), limit(1));
+      const q2 = query(collection(db, coll), where('email','==',email), limit(1));
       const s2 = await getDocs(q2);
       if (!s2.empty) {
         const d = s2.docs[0].data() as any;
@@ -70,11 +60,10 @@ async function roleFromCollection(
       }
     } catch {}
   }
-
-  // 4) usernameLower field (for custom usernames)
+  // 4) by usernameLower field
   if (usernameLower) {
     try {
-      const q3 = query(collection(db, coll), where('usernameLower', '==', usernameLower), limit(1));
+      const q3 = query(collection(db, coll), where('usernameLower','==',usernameLower), limit(1));
       const s3 = await getDocs(q3);
       if (!s3.empty) {
         const d = s3.docs[0].data() as any;
@@ -83,31 +72,32 @@ async function roleFromCollection(
       }
     } catch {}
   }
-
   return '';
 }
 
 async function resolveRoleFromDB(ident: Ident): Promise<Role | ''> {
-  // Prefer appUsers (custom accounts), then users (profiles/break-glass)
   const r1 = await roleFromCollection('appUsers', ident);
   if (r1) return r1;
   return roleFromCollection('users', ident);
 }
 
 async function resolveRoleForIdentity(ident: Ident, fbUser?: User | null): Promise<Role | ''> {
-  // 0) Prefer Firebase custom claims for email users
-  if (fbUser) {
+  const sess = getSession();
+  const usingCustomSession = !!sess && sess.mode === 'custom-firestore';
+
+  // ✅ Only trust Firebase claims when we are actually using Firebase Auth (not custom session)
+  if (fbUser && !usingCustomSession) {
     try {
+      // Force refresh to ensure we do NOT see a stale claim from a previous user
       const tok = await getIdTokenResult(fbUser, true);
       const claimRole = normalizeRole(tok.claims?.role);
       if (claimRole) return claimRole;
     } catch {}
   }
-  // 1) DB lookup
+
+  // Fallback to DB lookup (appUsers → users)
   return resolveRoleFromDB(ident);
 }
-
-/* ---------------- Hook ---------------- */
 
 export function useEffectiveRole() {
   const [phase, setPhase] = useState<Phase>('checking');
@@ -115,10 +105,8 @@ export function useEffectiveRole() {
 
   useEffect(() => {
     let alive = true;
-
     const off = onAuthStateChanged(auth, async (fbUser) => {
       try {
-        // Build identity from Firebase user OR custom session
         const sess = getSession();
         const ident: Ident = {
           uid: fbUser?.uid || sess?.uid || undefined,
@@ -140,7 +128,7 @@ export function useEffectiveRole() {
 
         if (r) {
           setRole(r);
-          setPhase('allowed'); // meaning: we have a role; caller will check allowed[] below
+          setPhase('allowed');
         } else {
           setRole('');
           setPhase('denied');
@@ -152,46 +140,26 @@ export function useEffectiveRole() {
         setPhase('denied');
       }
     });
-
     return () => { alive = false; off(); };
   }, []);
 
   return { phase, role };
 }
 
-/* ---------------- Page/Route guards ---------------- */
-
-export const RequireRole: React.FC<{ allowed: Role[]; children: React.ReactNode }> = ({
-  allowed,
-  children,
-}) => {
+export const RequireRole: React.FC<{ allowed: Role[]; children: React.ReactNode }> = ({ allowed, children }) => {
   const { phase, role } = useEffectiveRole();
-
-  if (phase === 'checking') {
-    return <div style={{ color:'#fff', textAlign:'center', paddingTop:'20%' }}>Checking permissions…</div>;
-  }
-  if (phase === 'none') {
-    return <Navigate to="/" replace />;
-  }
-  if (phase === 'denied' || !role || !allowed.includes(role)) {
-    return <Navigate to="/unauthorized" replace />;
-  }
+  if (phase === 'checking') return <div style={{ color:'#fff', textAlign:'center', paddingTop:'20%' }}>Checking permissions…</div>;
+  if (phase === 'none') return <Navigate to="/" replace />;
+  if (phase === 'denied' || !role || !allowed.includes(role)) return <Navigate to="/unauthorized" replace />;
   return <>{children}</>;
 };
 
 export function withRole<P>(Component: React.ComponentType<P>, allowed: Role[]) {
   const Wrapped: React.FC<P> = (props) => {
     const { phase, role } = useEffectiveRole();
-
-    if (phase === 'checking') {
-      return <div style={{ color:'#fff', textAlign:'center', paddingTop:'20%' }}>Checking permissions…</div>;
-    }
-    if (phase === 'none') {
-      return <Navigate to="/" replace />;
-    }
-    if (phase === 'denied' || !role || !allowed.includes(role)) {
-      return <Navigate to="/unauthorized" replace />;
-    }
+    if (phase === 'checking') return <div style={{ color:'#fff', textAlign:'center', paddingTop:'20%' }}>Checking permissions…</div>;
+    if (phase === 'none') return <Navigate to="/" replace />;
+    if (phase === 'denied' || !role || !allowed.includes(role)) return <Navigate to="/unauthorized" replace />;
     return <Component {...props} />;
   };
   Wrapped.displayName = `withRole(${Component.displayName || Component.name || 'Component'})`;

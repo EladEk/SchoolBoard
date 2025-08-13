@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Header.module.css';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase/app';
 
 type HeaderProps = {
   title?: string;
@@ -16,7 +18,12 @@ export default function Header({
   navMode = 'full',
 }: HeaderProps) {
   const navigate = useNavigate();
-  const logout = () => { localStorage.clear(); navigate('/'); };
+
+  const logout = async () => {
+    try { await signOut(auth); } catch (e) { console.error('signOut failed:', e); }
+    localStorage.clear();
+    navigate('/');
+  };
 
   return (
     <header className={styles.wrapper}>
@@ -28,7 +35,6 @@ export default function Header({
           </span>
         )}
       </div>
-
       <div className={styles.right}>
         {navMode === 'full' && (
           <>

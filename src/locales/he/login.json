@@ -1,17 +1,24 @@
 {
   "title": "התחברות",
-  "subtitle": "הענס שם משתמש",
-  "usernameLabel": "שם משתמש / שם תצוגה / אימייל מנהל",
-  "usernamePlaceholder": "לדוגמה elad2",
-  "passwordLabel": "סיסמה",
-  "signIn": "התחבר",
-  "signingIn": "מתחבר…",
+  "subtitle": "שם משתמש",
+  "fields": {
+    "identifier": {
+      "label": "אימייל או שם משתמש",
+      "placeholder": "לדוגמה: user@gmail.com או davidco"
+    },
+    "password": {
+      "label": "סיסמה",
+      "placeholder": "הסיסמה שלך"
+    }
+  },
+  "actions": { "signIn": "התחבר" },
+  "states": { "signingIn": "מתחבר…" },
   "errors": {
-    "adminProfileMissing": "פרופיל מנהל לא נמצא תחת ‎/users/{uid}‎",
-    "notAdmin": "החשבון הזה אינו מנהל.",
     "userNotFound": "המשתמש לא נמצא",
-    "noPasswordHash": "רשומת המשתמש חסרה סיסמה מוצפנת",
-    "wrongPassword": "סיסמה שגויה",
+    "missingPassword": "חסר שדה סיסמה למשתמש",
+    "wrongPassword": "סיסמה לא נכונה",
+    "noRole": "לא נמצא תפקיד למשתמש. בקש מהאדמין להגדיר תפקיד או הרשאות.",
     "generic": "ההתחברות נכשלה"
-  }
+  },
+  "aria": { "form": "טופס התחברות" }
 }

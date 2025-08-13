@@ -6,6 +6,7 @@ import { auth, db } from '../firebase/app';
 import {
   signInWithEmailAndPassword,
   getIdTokenResult,
+  signOut,
 } from 'firebase/auth';
 import {
   collection,
@@ -17,7 +18,8 @@ import {
   where,
 } from 'firebase/firestore';
 
-import * as bcrypt from 'bcryptjs'; // ensure `npm i bcryptjs`
+import * as bcrypt from 'bcryptjs'; // ensure: npm i bcryptjs
+import { useTranslation } from 'react-i18next';
 import styles from './LoginPage.module.css';
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
@@ -148,6 +150,7 @@ async function findAppUserByIdentifier(identifierRaw: string) {
 /* ---------- Component ---------- */
 
 export default function LoginPage() {
+  const { t } = useTranslation('login');
   const navigate = useNavigate();
   const [idOrEmail, setIdOrEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -172,9 +175,8 @@ export default function LoginPage() {
   /* ----- Email (Firebase Auth) flow ----- */
   async function loginWithEmail(email: string, pass: string) {
     const cred = await signInWithEmailAndPassword(auth, email, pass);
-    const uid = cred.user.uid;
 
-    // Prefer custom claims for role
+    // Prefer custom claims for role (force refresh so we don't reuse stale claims)
     let role: Role | '' = '';
     try {
       const tok = await getIdTokenResult(cred.user, true);
@@ -183,13 +185,13 @@ export default function LoginPage() {
 
     // Fallback: resolve role from Firestore
     if (!role) {
-      role = await resolveRole({ uid, email });
-      if (!role) throw new Error('No role found for this user. Ask admin to set role or claims.');
+      role = await resolveRole({ uid: cred.user.uid, email });
+      if (!role) throw new Error(t('errors.noRole', 'No role found for this user. Ask admin to set role or claims.'));
     }
 
     // Save minimal session (no role; guards verify from DB/claims)
     const session = {
-      uid,
+      uid: cred.user.uid,
       email: cred.user.email || email,
       displayName: cred.user.displayName || email,
       loggedInAt: Date.now(),
@@ -203,13 +205,13 @@ export default function LoginPage() {
   /* ----- Username (custom Firestore) flow ----- */
   async function loginWithUsername(identifier: string, pass: string) {
     const docRef = await findAppUserByIdentifier(identifier);
-    if (!docRef) throw new Error('User not found');
+    if (!docRef) throw new Error(t('errors.userNotFound', 'User not found'));
 
     const data = docRef.data() as any;
     const storedHash: string | undefined = data.passwordHash;
     const storedSalt: string | undefined = data.salt;
 
-    if (!storedHash) throw new Error('User record missing password');
+    if (!storedHash) throw new Error(t('errors.missingPassword', 'User record missing password'));
 
     let ok = false;
     if (isBcryptHash(storedHash)) {
@@ -219,9 +221,9 @@ export default function LoginPage() {
       const candidate = await sha256Hex((storedSalt || '') + pass);
       ok = candidate === storedHash;
     }
-    if (!ok) throw new Error('Wrong password');
+    if (!ok) throw new Error(t('errors.wrongPassword', 'Wrong password'));
 
-    // Build session — IMPORTANT: include the appUsers doc id and usernameLower
+    // Build session — include appUsers doc id and usernameLower
     const session = {
       uid: docRef.id, // <-- appUsers document id
       email: data.email || undefined,
@@ -243,14 +245,18 @@ export default function LoginPage() {
       email: session.email,
       usernameLower: session.usernameLower,
     });
-    if (!role) throw new Error('No role found for this user. Ask admin to set role.');
+    if (!role) throw new Error(t('errors.noRole', 'No role found for this user. Ask admin to set role.'));
 
     await routeByRole(role);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Clean start for every login attempt (prevents sticky sessions)
+    try { await signOut(auth); } catch {}
     localStorage.clear();
+
     if (!canSubmit) return;
     setError(null);
     setSubmitting(true);
@@ -264,7 +270,7 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err?.message || 'Login failed');
+      setError(err?.message || t('errors.generic', 'Login failed'));
     } finally {
       setSubmitting(false);
     }
@@ -272,38 +278,52 @@ export default function LoginPage() {
 
   return (
     <div className={styles.page}>
-      <form onSubmit={handleSubmit} className={styles.card}>
-        <h1 className={styles.title}>Sign in</h1>
-        <p className={styles.subtitle}>Use email (Firebase) or username (custom)</p>
+      <form onSubmit={handleSubmit} className={styles.card} aria-label={t('aria.form', 'Login form')}>
+        <h1 className={styles.title}>{t('title', 'Sign in')}</h1>
+        <p className={styles.subtitle}>{t('subtitle', 'Use email (Firebase) or username (custom)')}</p>
 
         <div className={styles.form}>
           <div>
-            <label className={styles.label}>Email or Username</label>
+            <label className={styles.label} htmlFor="login-identifier">
+              {t('fields.identifier.label', 'Email or Username')}
+            </label>
             <input
+              id="login-identifier"
               type="text"
               value={idOrEmail}
               onChange={(e) => setIdOrEmail(e.target.value)}
               className={styles.input}
               autoComplete="username"
-              placeholder="e.g. eladek@gmail.com or davidco"
+              placeholder={t('fields.identifier.placeholder', 'e.g. eladek@gmail.com or davidco')}
+              aria-required="true"
             />
           </div>
 
           <div>
-            <label className={styles.label}>Password</label>
+            <label className={styles.label} htmlFor="login-password">
+              {t('fields.password.label', 'Password')}
+            </label>
             <input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={styles.input}
               autoComplete="current-password"
+              placeholder={t('fields.password.placeholder', 'Your password')}
+              aria-required="true"
             />
           </div>
 
           {error && <div className={styles.error} role="alert">{error}</div>}
 
-          <button type="submit" disabled={!canSubmit} className={styles.submitBtn}>
-            {submitting ? 'Signing in…' : 'Sign in'}
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className={styles.submitBtn}
+            aria-label={t('actions.signIn', 'Sign in')}
+          >
+            {submitting ? t('states.signingIn', 'Signing in…') : t('actions.signIn', 'Sign in')}
           </button>
         </div>
       </form>
