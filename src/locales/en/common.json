@@ -13,5 +13,15 @@
   "close": "Close",
   "downloadTemplate": "Download Template",
   "export": "Export",
-  "import": "Import"
+  "import": "Import",
+  "create": "צור",
+  "save": "שמור",
+  "done": "בוצע",
+  "loading": "טוען…",
+  "importing": "מייבא…",
+  "exported": "ייצוא הושלם",
+  "deleteConfirm": "לאשר מחיקה?",
+  "sort": "מיון",
+  "me": "אני",
+  "unknown": "לא ידוע"
 }

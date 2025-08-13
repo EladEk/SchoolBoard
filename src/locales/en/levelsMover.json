@@ -15,5 +15,6 @@
   "prevLevel": "← To previous level (smallest group)",
   "nextLevel": "To next level → (smallest group)",
   "noStudentsInGroup": "No students in this group",
-  "moveAllConfirm": "Move ALL students from this group?"
+  "moveAllConfirm": "Move ALL students from this group?",
+  "templateDownloaded": "התבנית הורדה"
 }

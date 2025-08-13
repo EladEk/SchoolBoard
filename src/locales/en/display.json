@@ -18,5 +18,6 @@
     "friday": "Friday",
     "saturday": "Saturday",
     "day": "Day {{number}}"
-  }
+  },
+  "unknown": "לא ידוע"
 }
