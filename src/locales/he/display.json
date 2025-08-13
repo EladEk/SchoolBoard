@@ -1,4 +1,5 @@
 {
+  "unknown": "לא ידוע",
   "title": "מערכת שעות בית ספר",
   "timeColumn": "שעה",
   "timeSlots": "משבצות זמן",
@@ -18,5 +19,6 @@
     "friday": "יום שישי",
     "saturday": "יום שבת",
     "day": "יום {{number}}"
-  }
+  },
+  "labels": {}
 }

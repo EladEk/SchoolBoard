@@ -16,5 +16,15 @@
   "import": "ייבוא",
   "template": "תבנית",
   "clear": "נקה",
-  "search" : "חפש"
+  "search": "חפש",
+  "create": "צור",
+  "save": "שמור",
+  "done": "בוצע",
+  "loading": "טוען…",
+  "importing": "מייבא…",
+  "exported": "ייצוא הושלם",
+  "deleteConfirm": "לאשר מחיקה?",
+  "sort": "מיון",
+  "me": "אני",
+  "unknown": "לא ידוע"
 }

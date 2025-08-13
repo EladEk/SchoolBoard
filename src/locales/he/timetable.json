@@ -7,12 +7,13 @@
     "class": "כיתה",
     "lesson": "שיעור",
     "save": "שמירה",
-    "importing" : "מייבא…",
+    "importing": "מייבא…",
     "askBeforeDeleteSession": "אל תשאל שוב לפני מחיקות (במהלך סשן זה)",
     "cancel": "ביטול",
     "placed": "מיקומים לשיעור שבחרת: <b>{{count}}</b>",
     "loadedEntries": "נטענו {{count}} משבצות.",
-    "selectLessonFirst": "בחר שיעור לפני סימון משבצת."
+    "selectLessonFirst": "בחר שיעור לפני סימון משבצת.",
+    "importErrors": "שגיאות ייבוא"
   },
   "legend": {
     "selectedExisting": "שיעור שנבחר (קיים)",
@@ -21,18 +22,30 @@
   },
   "emptyPrompt": "בחר כיתה כדי להתחיל לשבץ.",
   "toasts": {
-    "saving": "שומר שינויים…",
-    "saved": "נשמר!",
-    "saveFailed": "שמירה נכשלה.",
-    "loadFailed": "טעינת המערכת נכשלה: {{msg}}",
-    "prepareFailed": "שגיאה בהכנה: {{msg}}",
-    "selectLessonFirst": "יש לבחור שיעור לפני סימון משבצת."
-  },
-  "toasts": {
     "deleted": "נמחק!",
     "saved": "נשמר",
-    "saving": "שומר"
+    "saving": "שומר",
+    "added": "נוסף",
+    "exported": "ייצוא הושלם",
+    "importDone": "הייבוא הושלם",
+    "importFail": "הייבוא נכשל",
+    "importing": "מייבא…",
+    "loadFailed": "טעינת המערכת נכשלה: {{msg}}",
+    "prepareFailed": "שגיאה בהכנה: {{msg}}",
+    "saveFailed": "שמירה נכשלה.",
+    "selectClassFirst": "יש לבחור כיתה לפני סימון משבצת.",
+    "selectLessonFirst": "יש לבחור שיעור לפני סימון משבצת.",
+    "templateDownloaded": "התבנית הורדה",
+    "updated": "עודכן"
   },
-  "days": ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"],
+  "days": [
+    "א׳",
+    "ב׳",
+    "ג׳",
+    "ד׳",
+    "ה׳",
+    "ו׳",
+    "ש׳"
+  ],
   "confirmDelete": "אשר מחיקה"
 }

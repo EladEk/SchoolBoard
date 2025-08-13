@@ -26,6 +26,11 @@
     "lesson": "שיעור",
     "roster": "רשימת תלמידים"
   },
-  "manageRoster" : "ניהול תלמידים",
-  "managing" : "בניהול"
+  "manageRoster": "ניהול תלמידים",
+  "managing": "בניהול",
+  "allStudents": "כל התלמידים",
+  "managingRosterFor": "ניהול רשימת תלמידים עבור {{lesson}}",
+  "noStudentsYet": "אין עדיין תלמידים.",
+  "searchStudents": "חפש תלמידים",
+  "selectLesson": "בחר שיעור"
 }
