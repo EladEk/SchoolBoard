@@ -143,7 +143,7 @@ export default function ParliamentAdminTab() {
       { key: 'queue',    label: t('parliament:queue', 'Moderation queue') },
       { key: 'approved', label: t('parliament:approved', 'Approved') },
       { key: 'rejected', label: t('parliament:rejected', 'Rejected') },
-      { key: 'dates',    label: t('parliament:dates', 'Dates') },
+      { key: 'dates',    label: t('parliament:createDate', 'Create date') },
     ]) as Array<{ key: SubTab; label: string }>,
     [t]
   );
@@ -271,7 +271,7 @@ export default function ParliamentAdminTab() {
       {subTab === 'dates' && (
         <div>
           <div className={styles.actionBar}>
-            <div className={styles.panelTitle}>{t('parliament:dates', 'Dates')}</div>
+            <div className={styles.panelTitle}>{t('parliament:createDate', 'Create date')}</div>
           </div>
 
           {/* Create Date Form */}
