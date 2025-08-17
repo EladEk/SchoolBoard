@@ -82,15 +82,13 @@
   background: transparent;
   cursor: pointer;
   border-bottom: 1px dashed rgba(255,255,255,0.08);
-  color: #fff; /* ensure white text */
+  color: #fff;
 }
 
-.teacherItem:hover {
-  background: rgba(255,255,255,0.04);
-}
+.teacherItem:hover { background: rgba(255,255,255,0.04); }
 
 .teacherItemSelected {
-  background: rgba(100,180,255,0.15); /* lighter for better contrast */
+  background: rgba(100,180,255,0.15);
   color: #fff;
 }
 
@@ -141,10 +139,7 @@
 
 .btn:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
 .btn:disabled,
-.btnPrimary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn:focus,
 .btnPrimary:focus {
@@ -152,12 +147,8 @@
   outline-offset: 2px;
 }
 
-.btnPrimary {
-  border-color: rgba(120,200,255,0.6);
-}
-.btnPrimary:hover:not(:disabled) {
-  background: rgba(120,200,255,0.1);
-}
+.btnPrimary { border-color: rgba(120,200,255,0.6); }
+.btnPrimary:hover:not(:disabled) { background: rgba(120,200,255,0.1); }
 
 .empty {
   padding: 16px;
@@ -182,12 +173,13 @@
 .toastError { background: #ffb7c1; }
 .toastInfo { background: #c6dcff; }
 
-/* Responsive adjustments */
+/* ===== Mobile additions ===== */
 @media (max-width: 768px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  .split {
-    grid-template-columns: 1fr;
-  }
+  .header { flex-direction: column; align-items: stretch; gap: 8px; }
+  .grid { grid-template-columns: 1fr; }
+  .split { grid-template-columns: 1fr; }
+  .cardHeader { flex-direction: column; align-items: stretch; }
+  .row { flex-wrap: wrap; }
+  .actions { justify-content: flex-end; }
+  .studentRow { align-items: flex-start; flex-direction: column; }
 }

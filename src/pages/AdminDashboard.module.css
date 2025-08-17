@@ -63,13 +63,8 @@
   gap: 16px;
 }
 
-.sessionInfo {
-  font-size: 13px;
-  color: #d6d7db;
-}
-.roleSep {
-  color: var(--dash-muted);
-}
+.sessionInfo { font-size: 13px; color: #d6d7db; }
+.roleSep { color: var(--dash-muted); }
 
 /* logout */
 .logoutBtn {
@@ -104,17 +99,49 @@
 }
 .tabBtn:hover { background: #1f2026; }
 .tabBtn:active { transform: translateY(1px); }
+.tabBtnActive { background: #26272e; border-color: #3a3b44; }
 
-.tabBtnActive {
-  background: #26272e;
-  border-color: #3a3b44;
+/* ===== Mobile collapse bits ===== */
+.tabsToggle {
+  display: none; /* hidden on desktop */
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.18);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .headerBar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding-inline: 16px;
+  }
+
+  .tabsToggle { display: inline-block; }
+
+  /* collapsed by default on mobile */
+  .tabsBar {
+    display: none;
+    padding-inline: 16px;
+    padding-bottom: 12px;
+  }
+  /* shown when “open” */
+  .tabsBarOpen {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .tabBtn { width: 100%; text-align: center; }
+  .main { padding: 12px; }
+  .section { padding: 12px; border-radius: 16px; }
 }
 
 /* body */
-.main {
-  padding: 24px;
-}
-
+.main { padding: 24px; }
 .section {
   background: var(--dash-surface);
   border: 1px solid var(--dash-border);

@@ -73,20 +73,12 @@
   color: #d7e3ff;
   border: 1px solid rgba(125, 165, 255, 0.35);
 }
-.btnSecondary:hover {
-  border-color: rgba(125, 165, 255, 0.65);
-}
+.btnSecondary:hover { border-color: rgba(125, 165, 255, 0.65); }
 
-.btnPrimary {
-  background-color: #0078d4;
-  color: #fff;
-}
+.btnPrimary { background-color: #0078d4; color: #fff; }
 .btnPrimary:hover { background-color: #0063b1; }
 
-.btnDanger {
-  background-color: #b91c1c;
-  color: #fff;
-}
+.btnDanger { background-color: #b91c1c; color: #fff; }
 .btnDanger:hover { background-color: #991b1b; }
 
 .btnSmall {
@@ -222,4 +214,19 @@
 }
 
 /* ---------- Responsive ---------- */
-/* (No special wide modal needed here — edit is compact) */
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: stretch; gap: 8px; }
+  .cardTitleRow { flex-direction: column; align-items: stretch; gap: 6px; }
+  .actions { width: 100%; }
+  .actions .btn,
+  .actions .btnSecondary,
+  .actions .btnPrimary,
+  .actions .btnDanger { flex: 1 1 auto; }
+  .row { gap: 6px; }
+  .modalScrim { padding: 12px; }
+  .modalCard { max-width: 96vw; }
+}
+/* Keep table usable on phones: allow horizontal scroll inside wrapper */
+@media (max-width: 768px) {
+  .table { min-width: 640px; }
+}

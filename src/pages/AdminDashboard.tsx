@@ -22,6 +22,8 @@ function AdminDashboard() {
     'users' | 'classes' | 'lessons' | 'timetable' | 'advisories' | 'levels' | 'news'
   >('users');
 
+  const [tabsOpen, setTabsOpen] = useState(false); // NEW: mobile tabs collapsed/expanded
+
   const session = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('session') || '{}') || {}; } catch { return {}; }
   }, []);
@@ -41,6 +43,12 @@ function AdminDashboard() {
     { key: 'news',       label: t('dashboard:tabs.news', 'News') },
   ]), [t]);
 
+  // Pick tab and auto-close the mobile panel
+  function pickTab(key: typeof active) {
+    setActive(key);
+    setTabsOpen(false);
+  }
+
   return (
     <div className={styles.page}>
       {/* Header / Top Nav */}
@@ -53,10 +61,10 @@ function AdminDashboard() {
 
           <div className={styles.rightControls}>
             <div className={styles.sessionInfo}>
-              <span style={{ fontWeight: 600 }}>{session?.displayName || 'Admin'}</span>
-              {session?.role ? (
+              <span style={{ fontWeight: 600 }}>{(session as any)?.displayName || 'Admin'}</span>
+              {(session as any)?.role ? (
                 <span className={styles.roleSep}>
-                  {t('dashboard:dashboard.roleSeparator', ' · ')}{session.role}
+                  {t('dashboard:dashboard.roleSeparator', ' · ')}{(session as any).role}
                 </span>
               ) : null}
             </div>
@@ -65,14 +73,28 @@ function AdminDashboard() {
               {t('dashboard:dashboard.logout', 'Logout')}
             </button>
           </div>
+
+          {/* Mobile-only: show/hide tabs */}
+          <button
+            type="button"
+            className={styles.tabsToggle}
+            aria-controls="admin-tabs"
+            aria-expanded={tabsOpen}
+            onClick={() => setTabsOpen(v => !v)}
+          >
+            {tabsOpen ? t('dashboard:tabs.hide', 'Hide tabs ▲') : t('dashboard:tabs.show', 'Tabs ▼')}
+          </button>
         </div>
 
-        {/* Tabs bar under header */}
-        <nav className={styles.tabsBar}>
+        {/* Tabs bar */}
+        <nav
+          id="admin-tabs"
+          className={`${styles.tabsBar} ${tabsOpen ? styles.tabsBarOpen : ''}`}
+        >
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActive(tab.key)}
+              onClick={() => pickTab(tab.key)}
               className={[
                 styles.tabBtn,
                 active === tab.key ? styles.tabBtnActive : ''

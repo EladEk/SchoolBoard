@@ -127,3 +127,15 @@
 
 /* RTL niceties (mirror Admin rules) */
 html[dir="rtl"] .tdash-header .tdash-tabs { flex-direction: row-reverse; }
+
+/* ===== Mobile additions ===== */
+@media (max-width: 600px) {
+  .tdash-main { padding: 12px; }
+  .tdash-section { padding: 12px; border-radius: 16px; }
+  .tdash-header .tdash-tabs {
+    flex-direction: column;
+    gap: 6px;
+    padding-block: 10px;
+  }
+  .tdash-tab { width: 100%; text-align: center; }
+}

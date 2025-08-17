@@ -45,6 +45,7 @@
   gap: 8px;
 }
 
+/* ---- Buttons ---- */
 .linkBtn {
   appearance: none;
   border: none;
@@ -78,15 +79,72 @@
 
 /* High-contrast focus ring */
 .linkBtn:focus-visible,
-.logoutBtn:focus-visible {
+.logoutBtn:focus-visible,
+.menuToggle:focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
 }
 
+/* ====== Mobile nav (hamburger) ====== */
+.menuToggle {
+  display: none;              /* desktop hidden */
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.18);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.menuIcon {
+  display: inline-block;
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+/* Container for inline links on desktop */
+.navLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Slide-down panel shown only on mobile */
+.menuPanel {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  background: rgba(15, 23, 42, 0.98);
+  box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 1px 0 var(--border);
+  display: none;
+  flex-direction: column;
+  padding: 10px;
+  gap: 6px;
+}
+.menuPanel.open { display: flex; }
+
+.menuLink {
+  display: block;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #e5e7eb;
+  background: #16171b;
+  border: 1px solid var(--border);
+}
+.menuLink:active { transform: translateY(1px); }
+
 /* Small screens */
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .title { font-size: 18px; }
   .meta { display: none; }
+
+  /* show burger, hide inline nav links */
+  .menuToggle { display: inline-flex; align-items: center; gap: 8px; }
+  .navLinks { display: none; }
+
+  /* keep logout next to burger */
+  .right { gap: 6px; }
 }
 
 /* Respect RTL (Hebrew) automatically via <html dir="rtl"> */

@@ -19,7 +19,7 @@ export default function NewsAdmin() {
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
-  // Live list
+  // Live list (no auth/role checks)
   useEffect(() => {
     const q = query(collection(db, 'announcements'));
     const unsub = onSnapshot(
@@ -36,7 +36,7 @@ export default function NewsAdmin() {
       },
       async (e) => {
         console.error('NewsAdmin onSnapshot error:', e);
-        setErr(t('news:toasts.loadFailLive'));
+        setErr(t('news:toasts.loadFailLive', 'Failed to load live updates'));
         try {
           const once = await getDocs(q);
           const list = once.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as NewsItem[];
@@ -49,7 +49,7 @@ export default function NewsAdmin() {
           setErr(null);
         } catch (e2: any) {
           console.error('NewsAdmin getDocs fallback error:', e2);
-          setErr(t('news:toasts.loadFailOnce'));
+          setErr(t('news:toasts.loadFailOnce', 'Failed to load data'));
         }
       }
     );
@@ -77,12 +77,12 @@ export default function NewsAdmin() {
       setEditingId(null);
     } catch (e: any) {
       console.error('Save failed:', e);
-      setErr(t('news:toasts.saveFail', { msg: e?.message || 'unknown' }));
+      setErr(t('news:toasts.saveFail', { msg: e?.message || 'unknown' }) || `Save failed: ${e?.message || 'unknown'}`);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(t('common:deleteConfirm'))) return;
+    if (!confirm(t('common:deleteConfirm', 'Are you sure?'))) return;
     try {
       await deleteDoc(doc(db, 'announcements', id));
       if (editingId === id) {
@@ -91,7 +91,7 @@ export default function NewsAdmin() {
       }
     } catch (e: any) {
       console.error('Delete failed:', e);
-      setErr(t('news:toasts.deleteFail', { msg: e?.message || 'unknown' }));
+      setErr(t('news:toasts.deleteFail', { msg: e?.message || 'unknown' }) || `Delete failed: ${e?.message || 'unknown'}`);
     }
   }
 
@@ -107,7 +107,7 @@ export default function NewsAdmin() {
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <h2 style={{ margin: 0 }}>{t('news:manage')}</h2>
+      <h2 style={{ margin: 0 }}>{t('news:manage', 'Manage announcements')}</h2>
 
       {err && (
         <div style={{ padding: 10, border: '1px solid #f5c2c7', background: '#f8d7da', color: '#842029', borderRadius: 8 }}>
@@ -118,12 +118,12 @@ export default function NewsAdmin() {
       {/* Add / Edit form */}
       <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 8 }}>
         <label style={{ display: 'grid', gap: 6 }}>
-          <span>{t('news:textLabel')}</span>
+          <span>{t('news:textLabel', 'Text')}</span>
           <input
             type="text"
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder={t('news:textPlaceholder')!}
+            placeholder={t('news:textPlaceholder', 'Write an announcement')!}
             style={{ padding: '10px 12px', border: '1px solid #cfd6e4', borderRadius: 10 }}
           />
         </label>
@@ -132,7 +132,7 @@ export default function NewsAdmin() {
             type="submit"
             style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #90caf9', background: '#e3f2fd' }}
           >
-            {isEditing ? t('common:save') : t('common:add')}
+            {isEditing ? t('common:save', 'Save') : t('common:add', 'Add')}
           </button>
           {isEditing && (
             <button
@@ -140,7 +140,7 @@ export default function NewsAdmin() {
               onClick={cancelEdit}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cfd6e4', background: '#fff' }}
             >
-              {t('common:cancel')}
+              {t('common:cancel', 'Cancel')}
             </button>
           )}
         </div>
@@ -151,8 +151,8 @@ export default function NewsAdmin() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead style={{ background: '#f3f6ff' }}>
             <tr>
-              <th style={{ textAlign: 'right', padding: 10, borderBottom: '1px solid #e3e7ef' }}>{t('news:table.text')}</th>
-              <th style={{ width: 120, borderBottom: '1px solid #e3e7ef' }}>{t('common:actions')}</th>
+              <th style={{ textAlign: 'right', padding: 10, borderBottom: '1px solid #e3e7ef' }}>{t('news:table.text', 'Text')}</th>
+              <th style={{ width: 120, borderBottom: '1px solid #e3e7ef' }}>{t('common:actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -168,14 +168,14 @@ export default function NewsAdmin() {
                     <button
                       onClick={() => startEdit(n)}
                       style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cfd6e4', background: '#fff', cursor: 'pointer' }}
-                      title={t('common:edit')!}
+                      title={t('common:edit', 'Edit')!}
                     >
                       ✎
                     </button>
                     <button
                       onClick={() => handleDelete(n.id)}
                       style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#ffebee', cursor: 'pointer' }}
-                      title={t('common:delete')!}
+                      title={t('common:delete', 'Delete')!}
                     >
                       🗑
                     </button>
@@ -186,7 +186,7 @@ export default function NewsAdmin() {
             {!items.length && (
               <tr>
                 <td colSpan={2} style={{ padding: 16, textAlign: 'center', color: '#667085' }}>
-                  {t('news:noItems')}
+                  {t('news:noItems', 'No announcements yet')}
                 </td>
               </tr>
             )}

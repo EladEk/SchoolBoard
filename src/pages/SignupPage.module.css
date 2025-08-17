@@ -107,3 +107,16 @@
 
 /* RTL niceties */
 html[dir="rtl"] .infoRow { flex-direction: row-reverse; }
+
+/* ===== Mobile additions ===== */
+@media (max-width: 600px) {
+  .page { padding: 16px; }
+  .card { padding: 16px; border-radius: 16px; }
+  .title { font-size: 18px; }
+  .subtitle { font-size: 13px; }
+  .form { gap: 10px; }
+  .input { font-size: 14px; padding: 8px 10px; }
+  .submitBtn { font-size: 15px; padding: 9px 10px; }
+  .infoBox { font-size: 13px; padding: 10px; }
+  .infoRow { flex-wrap: wrap; }
+}

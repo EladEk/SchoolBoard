@@ -367,29 +367,32 @@ export default function ClassesAdmin() {
           </div>
         </div>
 
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>{t('classes:table.classId', 'Class ID')}</th>
-              <th>{t('classes:table.name', 'Name')}</th>
-              <th>{t('classes:table.location', 'Location')}</th>
-              <th style={{width:180}}>{t('common:actions', 'Actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(row => (
-              <tr key={row.id}>
-                <td>{row.classId}</td>
-                <td>{row.name}</td>
-                <td>{row.location}</td>
-                <td style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
-                  <button className={styles.btnSmall} onClick={() => openEdit(row)}>{t('common:edit','Edit')}</button>
-                  <button className={styles.btnSmallDanger} onClick={() => removeItem(row.id)}>{t('common:delete','Delete')}</button>
-                </td>
+        {/* MOBILE-FRIENDLY SCROLL WRAPPER */}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>{t('classes:table.classId', 'Class ID')}</th>
+                <th>{t('classes:table.name', 'Name')}</th>
+                <th>{t('classes:table.location', 'Location')}</th>
+                <th style={{minWidth:160}}>{t('common:actions', 'Actions')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map(row => (
+                <tr key={row.id}>
+                  <td>{row.classId}</td>
+                  <td>{row.name}</td>
+                  <td>{row.location}</td>
+                  <td style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+                    <button className={styles.btnSmall} onClick={() => openEdit(row)}>{t('common:edit','Edit')}</button>
+                    <button className={styles.btnSmallDanger} onClick={() => removeItem(row.id)}>{t('common:delete','Delete')}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {edit.open && (

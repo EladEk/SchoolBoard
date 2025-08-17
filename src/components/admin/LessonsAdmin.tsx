@@ -575,34 +575,37 @@ export default function LessonsAdmin() {
           </div>
         </div>
 
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>{t('lessons:table.name','Name')}</th>
-              <th>{t('lessons:table.teacher','Teacher / Student-Teacher')}</th>
-              <th style={{width:240}}>{t('common:actions','Actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lessons.map(l => (
-              <tr key={l.id}>
-                <td>{l.name}</td>
-                <td>
-                  {!l.isStudentTeacher
-                    ? (l.teacherUsername || '-')
-                    : (l.studentUsername ? `${l.studentUsername} (${t('lessons:studentTeacher','student-teacher')})` : '-')}
-                </td>
-                <td style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
-                  <button className={styles.btnSmall} onClick={() => openEdit(l)}>{t('common:edit','Edit')}</button>
-                  <button className={styles.btnSmall} onClick={() => { setManageLessonId(l.id); setManageOpen(true); }}>
-                    {t('lessons:manageStudents','Manage Students')}
-                  </button>
-                  <button className={styles.btnSmallDanger} onClick={() => removeLesson(l.id)}>{t('common:delete','Delete')}</button>
-                </td>
+        {/* MOBILE-FRIENDLY SCROLL WRAPPER */}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>{t('lessons:table.name','Name')}</th>
+                <th>{t('lessons:table.teacher','Teacher / Student-Teacher')}</th>
+                <th style={{minWidth:220}}>{t('common:actions','Actions')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {lessons.map(l => (
+                <tr key={l.id}>
+                  <td>{l.name}</td>
+                  <td>
+                    {!l.isStudentTeacher
+                      ? (l.teacherUsername || '-')
+                      : (l.studentUsername ? `${l.studentUsername} (${t('lessons:studentTeacher','student-teacher')})` : '-')}
+                  </td>
+                  <td style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+                    <button className={styles.btnSmall} onClick={() => openEdit(l)}>{t('common:edit','Edit')}</button>
+                    <button className={styles.btnSmall} onClick={() => { setManageLessonId(l.id); setManageOpen(true); }}>
+                      {t('lessons:manageStudents','Manage Students')}
+                    </button>
+                    <button className={styles.btnSmallDanger} onClick={() => removeLesson(l.id)}>{t('common:delete','Delete')}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* EDIT POPUP */}

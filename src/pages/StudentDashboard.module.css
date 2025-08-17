@@ -169,3 +169,37 @@
     width: 104px;
   }
 }
+
+/* ===== Mobile additions ===== */
+@media (max-width: 768px) {
+  .titleRow { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .advisorLabel { font-size: 13px; }
+
+  /* Stack the timetable for narrow screens without affecting desktop grid */
+  .gridTable thead { display: none; }
+  .gridTable,
+  .gridTable tbody,
+  .gridTable tr,
+  .gridTable td {
+    display: block;
+    width: 100%;
+  }
+  .gridTable tbody tr { margin-bottom: 10px; }
+  .gridTable tbody td {
+    border: none;
+    border-bottom: 1px solid var(--dash-border);
+    padding: 10px 8px;
+  }
+
+  /* Make each cell visually separated */
+  .cell { padding: 8px; border-radius: 10px; }
+
+  /* Time column row label */
+  .timeCol {
+    width: 100%;
+    background: var(--dash-surface-3);
+    padding: 8px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+}

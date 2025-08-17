@@ -1,3 +1,4 @@
+/* ===== Base / Reset ===== */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; font-family: 'Heebo', Arial, sans-serif; direction: rtl; }
 a { color: inherit; text-decoration: none; }
@@ -7,7 +8,7 @@ a { color: inherit; text-decoration: none; }
 .blink-colon { animation: blink 1s step-start infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* Ticker */
+/* ===== Ticker ===== */
 .ticker { position: fixed; bottom: 0; width: 100%; background: #111; overflow: hidden; }
 .ticker-inner { white-space: nowrap; display: inline-block; padding: 8px 0; will-change: transform; }
 .ticker-item { display: inline-block; padding: 0 2rem; }
@@ -17,3 +18,86 @@ a { color: inherit; text-decoration: none; }
 .fade-enter-active { opacity: 1; transition: opacity 400ms; }
 .fade-exit { opacity: 1; }
 .fade-exit-active { opacity: 0; transition: opacity 400ms; }
+
+/* =========================================================
+   Mobile helpers (additive) — keep content inside the screen
+   ========================================================= */
+
+/* 1) Images/videos never overflow */
+img, video, canvas { max-width: 100%; height: auto; }
+
+/* 2) Global table safety: use .table-wrap around any wide table */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-wrap > table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* 3) Utility to force a min readable width for dense tables on phones */
+.table-min-600 { min-width: 600px; }
+.table-min-720 { min-width: 720px; } /* good default for admin tables */
+
+/* 4) Utility to allow horizontal scroll on any overflowing row/section */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 5) Hide/Show helpers for small screens */
+.hide-sm { display: initial; }
+.show-sm { display: none; }
+
+/* 6) Make button rows wrap nicely on mobile */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn-row > * { flex: 0 0 auto; }
+.btn-row.stack-sm > * { flex: 1 1 auto; }
+
+/* 7) If you add class="has-ticker" on body, content won't be covered */
+body.has-ticker { padding-bottom: 40px; } /* matches ~ticker height */
+
+/* 8) Better tap targets on mobile */
+button, [role="button"], .btn {
+  touch-action: manipulation;
+}
+
+/* ===== Mobile breakpoint tweaks (≤768px) ===== */
+@media (max-width: 768px) {
+  /* Compact page padding */
+  .container { padding: 12px; }
+
+  /* Tables: keep readable & inside the viewport
+     Apply one of the .table-min-* classes on the <table> for best results. */
+  .table-wrap > table { min-width: 600px; }
+
+  /* Default admin tables are wide → use 720px for comfort when class present */
+  .table-wrap > table.table-min-720 { min-width: 720px; }
+
+  /* Generic grids that might overflow: let them wrap */
+  .flex { flex-wrap: wrap; }
+
+  /* Buttons/filters/actions often placed in rows -> stack by default */
+  .btn-row { gap: 6px; }
+  .btn-row.stack-sm > * { width: 100%; }
+
+  /* Hide/Show helpers */
+  .hide-sm { display: none !important; }
+  .show-sm { display: initial !important; }
+
+  /* Make fixed ticker text a bit smaller on phones */
+  .ticker-inner { padding: 6px 0; }
+  .ticker-item { padding: 0 1rem; }
+}
+
+/* ===== Optional ultra‑small tweaks (≤420px) ===== */
+@media (max-width: 420px) {
+  .container { padding: 10px; }
+  .ticker-item { padding: 0 .75rem; }
+}

@@ -1,7 +1,5 @@
 /* ---------- Page shell ---------- */
-.wrap {
-  padding: 1rem;
-}
+.wrap { padding: 1rem; }
 
 .header {
   display: flex;
@@ -34,11 +32,7 @@
 }
 
 /* ---------- Actions / Buttons ---------- */
-.actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .btn,
 .btnSecondary,
@@ -54,133 +48,56 @@
   transition: transform .06s ease, opacity .15s ease, background-color .15s ease, border-color .15s ease;
   user-select: none;
 }
-
 .btn:active,
 .btnSecondary:active,
 .btnSmall:active,
-.btnSmallDanger:active {
-  transform: translateY(1px);
-}
+.btnSmallDanger:active { transform: translateY(1px); }
 
-.btn {
-  background-color: #3b3b3b;
-  color: #fff;
-}
+.btn { background-color: #3b3b3b; color: #fff; }
 .btn:hover { background-color: #4d4d4d; }
 
 .btnSecondary {
   background: transparent;
   color: #d7e3ff;
-  border: 1px solid rgba(125, 165, 255, 0.35);
+  border: 1px solid rgba(125,165,255,.35);
 }
-.btnSecondary:hover {
-  border-color: rgba(125, 165, 255, 0.65);
-}
+.btnSecondary:hover { border-color: rgba(125,165,255,.65); }
 
-.btnPrimary {
-  background-color: #0078d4;
-  color: #fff;
-}
+.btnPrimary { background-color: #0078d4; color: #fff; }
 .btnPrimary:hover { background-color: #0063b1; }
 
-.btnDanger {
-  background-color: #b91c1c;
-  color: #fff;
-}
+.btnDanger { background-color: #b91c1c; color: #fff; }
 .btnDanger:hover { background-color: #991b1b; }
 
 .btnSmall {
-  background: #3b3b3b;
-  color: #fff;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  border-radius: 6px;
+  background: #3b3b3b; color: #fff; padding: 6px 10px; font-size: 0.85rem; border-radius: 6px;
 }
 .btnSmall:hover { background: #4d4d4d; }
-
-.btnSmallDanger {
-  background: #b91c1c;
-  color: #fff;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  border-radius: 6px;
-}
+.btnSmallDanger { background: #b91c1c; color: #fff; padding: 6px 10px; font-size: 0.85rem; border-radius: 6px; }
 .btnSmallDanger:hover { background: #991b1b; }
 
 /* ---------- Form ---------- */
-.form {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
+.form { display: grid; grid-template-columns: 1fr; gap: 10px; }
 
 .input, .select {
-  background-color: #1f1f1f;
-  border: 1px solid #3b3b3b;
-  padding: 10px 12px;
-  border-radius: 8px;
-  color: white;
-  width: 100%;
-  font-size: 0.95rem;
+  background-color: #1f1f1f; border: 1px solid #3b3b3b; padding: 10px 12px; border-radius: 8px; color: white; width: 100%; font-size: 0.95rem;
 }
-.input:focus, .select:focus {
-  outline: none;
-  border-color: #0078d4;
-}
+.input:focus, .select:focus { outline: none; border-color: #0078d4; }
 
-.label {
-  color: #bfc6d1;
-  font-size: 0.85rem;
-  margin-bottom: -4px;
-}
-
-.checkbox {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  color: #d3dae6;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
+.label { color: #bfc6d1; font-size: 0.85rem; margin-bottom: -4px; }
+.checkbox { display: inline-flex; gap: 8px; align-items: center; color: #d3dae6; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 /* ---------- Table ---------- */
-.tableWrap {
-  overflow-x: auto;
-  margin-top: 1rem;
-}
-
+.tableWrap { overflow-x: auto; margin-top: 1rem; }
 .table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #1f1f1f;
-  border-radius: 10px;
-  overflow: hidden;
+  width: 100%; border-collapse: collapse; background-color: #1f1f1f; border-radius: 10px; overflow: hidden;
 }
-.table th, .table td {
-  border: 1px solid #3b3b3b;
-  padding: 10px;
-  text-align: left;
-  color: white;
-}
-.table th {
-  background-color: #2d2d2d;
-  font-weight: 600;
-}
+.table th, .table td { border: 1px solid #3b3b3b; padding: 10px; text-align: left; color: white; }
+.table th { background-color: #2d2d2d; font-weight: 600; }
 
 /* ---------- Toast ---------- */
-.toast {
-  padding: 0.6rem 0.9rem;
-  border-radius: 8px;
-  margin-top: 12px;
-  font-size: 0.9rem;
-  background: #1e40af;
-  color: #fff;
-}
+.toast { padding: 0.6rem 0.9rem; border-radius: 8px; margin-top: 12px; font-size: 0.9rem; background: #1e40af; color: #fff; }
 
 /* ---------- File input (hidden) ---------- */
 .fileInputHidden { display: none; }
@@ -218,43 +135,19 @@
 .modalCardWide { max-width: 980px; }
 
 .modalActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;
 }
 
 /* ---------- Manage Students layout ---------- */
-.manageGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 10px;
-}
-.manageCol h4 {
-  margin: 4px 0 8px;
-  color: #e7ecf6;
-  font-size: 0.95rem;
-}
+.manageGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+.manageCol h4 { margin: 4px 0 8px; color: #e7ecf6; font-size: 0.95rem; }
 
 .list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  background: #1f1f1f;
-  border: 1px solid #333;
-  border-radius: 8px;
-  max-height: 56vh;
-  overflow: auto;
+  list-style: none; margin: 0; padding: 0; background: #1f1f1f; border: 1px solid #333; border-radius: 8px;
+  max-height: 56vh; overflow: auto;
 }
-
 .listItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #2b2b2b;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #2b2b2b;
 }
 .listItem:last-child { border-bottom: none; }
 .listItem span { color: #e9eef9; font-size: 0.95rem; }
@@ -263,4 +156,17 @@
 @media (max-width: 900px) {
   .manageGrid { grid-template-columns: 1fr; }
   .modalCardWide { max-width: 100%; }
+}
+
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: stretch; gap: 8px; }
+  .cardTitleRow { flex-direction: column; align-items: stretch; gap: 6px; }
+  .actions { width: 100%; }
+  .actions .btn,
+  .actions .btnSecondary,
+  .actions .btnPrimary,
+  .actions .btnDanger { flex: 1 1 auto; }
+  .row { gap: 6px; }
+  .modalScrim { padding: 12px; }
+  .modalCard, .modalCardWide { max-width: 96vw; }
 }

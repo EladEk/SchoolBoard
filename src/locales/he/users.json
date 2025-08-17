@@ -9,21 +9,30 @@
   "classGrade": "כיתה",
   "create": "יצירת משתמש",
   "creating": "יוצר…",
-  "table": {
-    "username": "שם משתמש",
-    "first": "פרטי",
-    "last": "משפחה",
-    "role": "תפקיד"
-  },
+  "list": "כל המשתמשים",
+  "new": "צור משתמש",
   "editTitle": "עריכת משתמש",
   "newPasswordOptional": "סיסמה חדשה (אופציונלי)",
   "keepCurrentPassword": "להשאיר ריק כדי לשמור על הנוכחית",
+  "table": {
+    "username": "שם משתמש",
+    "name": "שם מלא",
+    "role": "תפקיד",
+    "birthday": "תאריך לידה",
+    "classId": "כיתה"
+  },
+  "filter": {
+    "all": "הכול",
+    "student": "תלמידים",
+    "teacher": "מורים",
+    "admin": "מנהלים",
+    "kiosk": "קיוסק"
+  },
   "toasts": {
     "loadFail": "נכשל בטעינת משתמשים: {{msg}}",
-    "dupUser": "שם המשתמש \"{{username}}\" כבר קיים",
+    "dup": "שם המשתמש \"{{username}}\" כבר קיים",
     "created": "המשתמש \"{{username}}\" נוצר",
     "createFail": "היצירה נכשלה: {{msg}}",
-    "dupOther": "משתמש אחר עם השם \"{{username}}\" כבר קיים",
     "updated": "המשתמש \"{{username}}\" עודכן",
     "updateFail": "העדכון נכשל: {{msg}}",
     "deleted": "המשתמש נמחק",
@@ -33,5 +42,11 @@
     "importFail": "הייבוא נכשל: {{msg}}",
     "templateDownloaded": "התבנית הורדה",
     "exported": "המשתמשים יוצאו"
+  },
+  "roleLabels": {
+    "student": "תלמיד",
+    "teacher": "מורה",
+    "admin": "מנהל",
+    "kiosk": "קיוסק"
   }
 }

@@ -4,534 +4,465 @@ import {
   serverTimestamp, updateDoc, where
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
-import * as bcrypt from 'bcryptjs';
 import * as XLSX from 'xlsx';
 import styles from './UsersAdmin.module.css';
 import { useTranslation } from 'react-i18next';
+
+type ToastState =
+  | { show: false }
+  | { show: true; kind: 'success' | 'error' | 'info'; message: string };
 
 type Role = 'admin' | 'teacher' | 'student' | 'kiosk';
 
 type AppUser = {
   id: string;
+  username?: string;
+  usernameLower?: string;
   firstName?: string;
   lastName?: string;
-  username: string;
-  usernameLower?: string;
   role: Role;
-  birthday?: string;      // ISO "YYYY-MM-DD"
-  classGrade?: string;    // Hebrew letter(s) "א".."יב"
-  passwordHash?: string;
-  salt?: string;
+  birthday?: string;
+  classId?: string;
   createdAt?: any;
 };
 
-type ToastState =
-  | { show: false }
-  | { show: true, kind: 'success'|'error'|'info', message: string };
-
-type EditState =
-  | { open: false }
-  | {
-      open: true;
-      id: string;
-      firstName: string;
-      lastName: string;
-      username: string;
-      role: Role;
-      newPassword: string;
-      birthday: string;
-      classGrade: string;
-    };
-
-// ----- Grades helpers -----
-const CLASS_GRADE_VALUES = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","יא","יב"] as const;
-type GradeHeb = typeof CLASS_GRADE_VALUES[number];
-function isHebGrade(v: string): v is GradeHeb { return CLASS_GRADE_VALUES.includes(v as GradeHeb); }
-function toHebGrade(input: any): string {
-  const raw = String(input ?? '').trim();
-  if (!raw) return '';
-  if (isHebGrade(raw)) return raw;
-  const noPrefix = raw.replace(/^כיתה\s*/, '');
-  if (isHebGrade(noPrefix)) return noPrefix;
-  const num = Number(raw);
-  if (!Number.isNaN(num) && num >= 1 && num <= 12) return CLASS_GRADE_VALUES[num-1];
-  const compact = noPrefix.replace(/[^\u0590-\u05FF]/g, '');
-  if (isHebGrade(compact)) return compact;
-  return '';
+function norm(v: string) { return (v || '').trim(); }
+function normLower(v: string) { return norm(v).toLowerCase(); }
+function labelUser(u: Partial<AppUser>) {
+  const full = `${u.firstName || ''} ${u.lastName || ''}`.replace(/\s+/g, ' ').trim();
+  return full || (u.username || '');
 }
-
-// ----- Sort helpers -----
-type SortKey = 'username'|'firstName'|'lastName'|'role'|'birthday'|'classGrade';
-type SortDir = 'asc'|'desc';
-type SortState = { key: SortKey, dir: SortDir };
-const DEFAULT_SORT: SortState = { key: 'username', dir: 'asc' };
-
-function compareStrings(a?: string, b?: string) {
-  const A = (a ?? '').toString().toLowerCase();
-  const B = (b ?? '').toString().toLowerCase();
-  if (A < B) return -1;
-  if (A > B) return 1;
-  return 0;
+function showToast(
+  setToast: React.Dispatch<React.SetStateAction<ToastState>>,
+  kind: 'success' | 'error' | 'info',
+  message: string,
+) {
+  setToast({ show: true, kind, message });
+  setTimeout(() => setToast({ show: false }), 2600);
 }
 
 export default function UsersAdmin() {
   const { t } = useTranslation();
-  const [users, setUsers] = useState<AppUser[]>([]);
   const [toast, setToast] = useState<ToastState>({ show: false });
 
-  // NEW: search + sort
-  const [queryText, setQueryText] = useState('');
-  const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
+  const [items, setItems] = useState<AppUser[]>([]);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<Role | 'all'>('all');
 
-  const [form, setForm] = useState({
-    firstName: '', lastName: '', username: '', password: '', role: 'teacher' as Role,
-    birthday: '', classGrade: 'א',
+  // collapsed by default on mobile; open on desktop
+  const [createOpen, setCreateOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth > 768;
   });
-  const [submitting, setSubmitting] = useState(false);
 
-  const [edit, setEdit] = useState<EditState>({ open: false });
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [form, setForm] = useState<Partial<AppUser>>({
+    username: '',
+    firstName: '',
+    lastName: '',
+    role: 'student',
+    birthday: '',
+  });
+  const [creating, setCreating] = useState(false);
+
+  const [edit, setEdit] = useState<{ open: false } | { open: true; row: AppUser }>({ open: false });
+  const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busyImport, setBusyImport] = useState(false);
 
+  // users table scroller (so we can jump to the right edge by default)
+  const tableWrapRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
+    const q = query(collection(db, 'appUsers'), orderBy('usernameLower'));
     const unsub = onSnapshot(
-      query(collection(db, 'appUsers'), orderBy('username')),
-      (snap) => setUsers(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))),
-      (err) => showToast('error', t('users:toasts.loadFail', { msg: err.message })),
+      q,
+      snap => {
+        const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as AppUser[];
+        setItems(list);
+      },
+      err => showToast(setToast, 'error', t('users:toasts.loadFail', { msg: err.message }))
     );
     return () => unsub();
   }, [t]);
 
-  const canCreate = useMemo(() =>
-    form.username.trim() && form.password.trim() && (form.firstName.trim() || form.lastName.trim())
-  , [form]);
+  // When list renders/changes, scroll the table wrapper to the rightmost side (RTL-friendly)
+  useEffect(() => {
+    const el = tableWrapRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => { el.scrollLeft = el.scrollWidth; });
+  }, [items.length]);
 
-  function showToast(kind: 'success'|'error'|'info', message: string) {
-    setToast({ show: true, kind, message });
-    setTimeout(()=>setToast({ show: false }), 2600);
-  }
+  const filtered = useMemo(() => {
+    const s = normLower(search);
+    return items.filter(u => {
+      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      if (!s) return true;
+      const hay = `${u.username} ${u.firstName} ${u.lastName} ${u.birthday || ''}`.toLowerCase();
+      return hay.includes(s);
+    });
+  }, [items, search, roleFilter]);
+
+  const canCreate = useMemo(
+    () => !!norm(form.username || '') && !!norm(form.role || ''),
+    [form]
+  );
 
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
-    if (!canCreate || submitting) return;
-
-    const firstName = form.firstName.trim();
-    const lastName = form.lastName.trim();
-    const username = form.username.trim();
-    const usernameLower = username.toLowerCase();
-    const birthday = form.birthday.trim();
-    const classGradeHeb = form.role === 'student' ? toHebGrade(form.classGrade) : '';
+    if (!canCreate || creating) return;
 
     try {
-      setSubmitting(true);
-      const dupSnap = await getDocs(query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower)));
-      if (!dupSnap.empty) { showToast('error', t('users:toasts.dupUser', { username })); return; }
+      setCreating(true);
+      const username = norm(form.username || '');
+      const usernameLower = username.toLowerCase();
 
-      const salt = bcrypt.genSaltSync(10);
-      const passwordHash = bcrypt.hashSync(form.password, salt);
-
-      const payload: any = {
-        firstName, lastName, username, usernameLower, role: form.role,
-        salt, passwordHash, createdAt: serverTimestamp(),
-      };
-      if (birthday) payload.birthday = birthday;
-      if (form.role === 'student' && classGradeHeb) payload.classGrade = classGradeHeb;
-
-      await addDoc(collection(db, 'appUsers'), payload);
-
-      setForm({ firstName:'', lastName:'', username:'', password:'', role:'teacher', birthday:'', classGrade:'א' });
-      showToast('success', t('users:toasts.created', { username }));
-    } catch (err:any) {
-      showToast('error', t('users:toasts.createFail', { msg: err?.message || 'unknown' }));
-    } finally { setSubmitting(false); }
-  }
-
-  function openEdit(u: AppUser) {
-    setEdit({
-      open: true, id: u.id,
-      firstName: u.firstName || '', lastName: u.lastName || '',
-      username: u.username || '', role: u.role, newPassword: '',
-      birthday: u.birthday || '',
-      classGrade: toHebGrade(u.classGrade) || 'א',
-    });
-  }
-  function closeEdit(){ setEdit({ open: false }); }
-
-  async function saveEdit() {
-    if (!edit.open) return;
-
-    const id = edit.id;
-    const firstName = edit.firstName.trim();
-    const lastName = edit.lastName.trim();
-    const username = edit.username.trim();
-    const usernameLower = username.toLowerCase();
-    const birthday = (edit.birthday || '').trim();
-    const classGradeHeb = edit.role === 'student' ? toHebGrade(edit.classGrade) : '';
-
-    if (!username) return showToast('error', t('users:toasts.createFail', { msg: t('users:username','Username') }));
-    if (!firstName && !lastName) return showToast('error', t('users:toasts.createFail', { msg: t('users:firstName','First name') + '/' + t('users:lastName','Last name') }));
-
-    try {
-      setSavingEdit(true);
-      const dup = await getDocs(query(collection(db, 'appUsers'), where('usernameLower','==',usernameLower)));
-      const dupExists = dup.docs.some(d => d.id !== id);
-      if (dupExists) { showToast('error', t('users:toasts.dupOther', { username })); return; }
-
-      const payload: any = {
-        firstName, lastName, username, usernameLower, role: edit.role,
-        birthday: birthday || '',
-        classGrade: edit.role==='student' ? (classGradeHeb || '') : '',
-      };
-      if (edit.newPassword?.trim()) {
-        const salt = bcrypt.genSaltSync(10);
-        const passwordHash = bcrypt.hashSync(edit.newPassword.trim(), salt);
-        payload.salt = salt; payload.passwordHash = passwordHash;
+      const dup = await getDocs(
+        query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
+      );
+      if (!dup.empty) {
+        showToast(setToast, 'error', t('users:toasts.dup', { username }));
+        return;
       }
 
-      await updateDoc(doc(db, 'appUsers', id), payload);
-      showToast('success', t('users:toasts.updated', { username }));
+      await addDoc(collection(db, 'appUsers'), {
+        username, usernameLower,
+        firstName: norm(form.firstName || ''),
+        lastName: norm(form.lastName || ''),
+        role: (form.role || 'student'),
+        birthday: norm(form.birthday || ''),
+        classId: norm(form.classId || ''),
+        createdAt: serverTimestamp(),
+      });
+
+      setForm({ username: '', firstName: '', lastName: '', role: 'student', birthday: '' });
+      showToast(setToast, 'success', t('users:toasts.created', { username }));
+    } catch (e: any) {
+      showToast(setToast, 'error', t('users:toasts.createFail', { msg: e?.message || 'unknown' }));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function openEdit(row: AppUser) { setEdit({ open: true, row }); }
+  function closeEdit() { setEdit({ open: false }); }
+
+  async function saveEdit() {
+    if (!edit.open || saving) return;
+    const { row } = edit;
+    try {
+      setSaving(true);
+
+      const username = norm(row.username || '');
+      const usernameLower = username.toLowerCase();
+
+      if (username) {
+        const dup = await getDocs(
+          query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
+        );
+        const existsOther = dup.docs.some(d => d.id !== row.id);
+        if (existsOther) {
+          showToast(setToast, 'error', t('users:toasts.dup', { username }));
+          setSaving(false);
+          return;
+        }
+      }
+
+      await updateDoc(doc(db, 'appUsers', row.id), {
+        username,
+        usernameLower,
+        firstName: norm(row.firstName || ''),
+        lastName: norm(row.lastName || ''),
+        role: (row.role || 'student'),
+        birthday: norm(row.birthday || ''),
+        classId: norm(row.classId || ''),
+      });
+
+      showToast(setToast, 'success', t('users:toasts.updated', { username: username || row.id }));
       closeEdit();
-    } catch (err:any) {
-      showToast('error', t('users:toasts.updateFail', { msg: err?.message || 'unknown' }));
-    } finally { setSavingEdit(false); }
+    } catch (e: any) {
+      showToast(setToast, 'error', t('users:toasts.updateFail', { msg: e?.message || 'unknown' }));
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function removeUser(id: string) {
-    try { await deleteDoc(doc(db, 'appUsers', id)); showToast('success', t('users:toasts.deleted')); }
-    catch (err:any) { showToast('error', t('users:toasts.deleteFail', { msg: err?.message || 'unknown' })); }
-  }
-
-  // ----- Import/Export -----
-  function downloadTemplate() {
-    const rows = [
-      { username:'teacher.alex', firstName:'Alex', lastName:'Levi', role:'teacher', password:'Secret123', birthday:'1985-03-12', classGrade:'' },
-      { username:'student.neta', firstName:'Neta',  lastName:'Cohen', role:'student', password:'Temp4567',  birthday:'2011-06-05', classGrade:'ו' },
-    ];
-    const header = ['username','firstName','lastName','role','password','birthday','classGrade'];
-    const ws = XLSX.utils.json_to_sheet(rows, { header });
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'UsersTemplate');
-    XLSX.writeFile(wb, 'users-template.xlsx');
-    showToast('info', t('users:toasts.templateDownloaded','Template downloaded'));
+    if (!window.confirm(t('common:deleteConfirm', 'Are you sure?'))) return;
+    try {
+      await deleteDoc(doc(db, 'appUsers', id));
+      showToast(setToast, 'success', t('users:toasts.deleted'));
+    } catch (e: any) {
+      showToast(setToast, 'error', t('users:toasts.deleteFail', { msg: e?.message || 'unknown' }));
+    }
   }
 
   function exportUsers() {
-    const rows = users.map(u => ({
+    const rows = filtered.map(u => ({
       username: u.username || '',
       firstName: u.firstName || '',
       lastName: u.lastName || '',
-      role: u.role || 'student',
-      password: '',
+      role: u.role || '',
       birthday: u.birthday || '',
-      classGrade: toHebGrade(u.classGrade) || '',
+      classId: u.classId || '',
     }));
-    const header = ['username','firstName','lastName','role','password','birthday','classGrade'];
-    const ws = XLSX.utils.json_to_sheet(rows, { header });
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Users');
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: ['username', 'firstName', 'lastName', 'role', 'birthday', 'classId'],
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Users');
     XLSX.writeFile(wb, 'users-export.xlsx');
-    showToast('success', t('users:toasts.exported','Exported'));
+    showToast(setToast, 'success', t('users:toasts.exported'));
   }
 
-  function openFilePicker(){ fileInputRef.current?.click(); }
-  function coerceDateString(v:any){ return String(v || '').trim(); }
+  function downloadTemplate() {
+    const rows = [
+      { username: 'teacher.alex', firstName: 'Alex', lastName: 'Cohen', role: 'teacher', birthday: '1987-04-11', classId: '' },
+      { username: 'student.neta', firstName: 'Neta', lastName: 'Levi', role: 'student', birthday: '2013-06-25', classId: 'CLS-ABCD' },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: ['username', 'firstName', 'lastName', 'role', 'birthday', 'classId'],
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'UsersTemplate');
+    XLSX.writeFile(wb, 'users-template.xlsx');
+    showToast(setToast, 'info', t('users:toasts.templateDownloaded'));
+  }
+
+  function openFilePicker() { fileInputRef.current?.click(); }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; e.target.value=''; if (!file) return;
-    try {
-      setBusyImport(true); showToast('info', t('users:toasts.importing','Importing...'));
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type:'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rowsRaw: any[] = XLSX.utils.sheet_to_json(ws, { defval:'' });
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
 
-      const existingMap = new Map<string, AppUser>();
-      for (const u of users) {
-        const key = (u.usernameLower || u.username?.toLowerCase()) as string;
-        if (key) existingMap.set(key, u);
+    try {
+      setBusyImport(true);
+      showToast(setToast, 'info', t('users:toasts.importing'));
+
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      const existing = new Map<string, AppUser>();
+      for (const u of items) {
+        if (u.usernameLower) existing.set(u.usernameLower, u);
       }
 
-      let created=0, updated=0, skipped=0; const reasons:string[] = [];
-      for (let i=0;i<rowsRaw.length;i++){
-        const r = rowsRaw[i];
-        const username = String(r['username'] ?? r['Username'] ?? '').trim();
-        const firstName = String(r['firstName'] ?? r['FirstName'] ?? '').trim();
-        const lastName = String(r['lastName'] ?? r['LastName'] ?? '').trim();
-        const role = String(r['role'] ?? r['Role'] ?? 'student').trim() as Role;
-        const password = String(r['password'] ?? r['Password'] ?? '').trim();
-        const birthday = coerceDateString(r['birthday'] ?? r['Birthday'] ?? '');
-        const classGradeHeb = role === 'student' ? toHebGrade(r['classGrade'] ?? r['ClassGrade'] ?? '') : '';
+      let created = 0, updated = 0, skipped = 0;
+      const reasons: string[] = [];
 
-        if (!username){ skipped++; reasons.push(`Row ${i+2}: missing username`); continue; }
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const username = norm(String(r['username'] ?? r['Username'] ?? ''));
+        const firstName = norm(String(r['firstName'] ?? r['FirstName'] ?? ''));
+        const lastName  = norm(String(r['lastName']  ?? r['LastName']  ?? ''));
+        const role      = norm(String(r['role']      ?? r['Role']      ?? 'student')) as Role;
+        const birthday  = norm(String(r['birthday']  ?? r['Birthday']  ?? ''));
+        const classId   = norm(String(r['classId']   ?? r['ClassId']   ?? ''));
+
+        if (!username) { skipped++; reasons.push(`Row ${i + 2}: missing username`); continue; }
         const key = username.toLowerCase();
-        const existing = existingMap.get(key);
 
-        if (existing){
-          const payload:any = {
-            firstName, lastName, username, usernameLower:key, role,
-            birthday: birthday || '',
-            classGrade: role==='student' ? (classGradeHeb || '') : '',
-          };
-          if (password){
-            const salt = bcrypt.genSaltSync(10);
-            const passwordHash = bcrypt.hashSync(password, salt);
-            payload.salt = salt; payload.passwordHash = passwordHash;
-          }
-          await updateDoc(doc(db,'appUsers', existing.id), payload);
+        const payload: Partial<AppUser> = {
+          username, usernameLower: key, firstName, lastName, role, birthday, classId
+        };
+
+        const rowExisting = existing.get(key);
+        if (rowExisting) {
+          await updateDoc(doc(db, 'appUsers', rowExisting.id), payload);
           updated++;
         } else {
-          if (!password){ skipped++; reasons.push(`Row ${i+2}: new user "${username}" missing password`); continue; }
-          const salt = bcrypt.genSaltSync(10);
-          const passwordHash = bcrypt.hashSync(password, salt);
-          const payload:any = {
-            firstName, lastName, username, usernameLower:key, role, salt, passwordHash, createdAt: serverTimestamp(),
-            birthday: birthday || '',
-            classGrade: role==='student' ? (classGradeHeb || '') : '',
-          };
-          await addDoc(collection(db,'appUsers'), payload);
+          await addDoc(collection(db, 'appUsers'), { ...payload, createdAt: serverTimestamp() });
           created++;
         }
       }
-      showToast('success', t('users:toasts.importDone', { created, updated, skipped }));
-      if (reasons.length) console.warn('Import skipped reasons:', reasons.join('\n'));
-    } catch (err:any) {
-      console.error(err); showToast('error', t('users:toasts.importFail', { msg: err?.message || 'unknown' }));
-    } finally { setBusyImport(false); }
-  }
 
-  // ----- Derived: filtered + sorted users -----
-  const filteredSorted = useMemo(() => {
-    const q = queryText.trim().toLowerCase();
-
-    const filtered = !q ? users : users.filter(u => {
-      const parts = [
-        u.username,
-        u.firstName,
-        u.lastName,
-        u.role,
-        u.birthday,
-        u.role==='student' ? `כיתה ${toHebGrade(u.classGrade)}` : '',
-        u.classGrade, // raw too
-      ].map(x => (x ?? '').toString().toLowerCase());
-      return parts.some(p => p.includes(q));
-    });
-
-    const sorted = [...filtered].sort((a, b) => {
-      const key = sort.key;
-      let cmp = 0;
-      if (key === 'classGrade') {
-        cmp = compareStrings(toHebGrade(a.classGrade), toHebGrade(b.classGrade));
-      } else {
-        cmp = compareStrings((a as any)[key], (b as any)[key]);
-      }
-      return sort.dir === 'asc' ? cmp : -cmp;
-    });
-
-    return sorted;
-  }, [users, queryText, sort]);
-
-  function toggleSort(nextKey: SortKey) {
-    setSort(prev => {
-      if (prev.key !== nextKey) return { key: nextKey, dir: 'asc' };
-      return { key: nextKey, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
-    });
-  }
-
-  function SortHeader({ column, label }: { column: SortKey, label: string }) {
-    const active = sort.key === column;
-    const dir = active ? sort.dir : undefined;
-    return (
-      <th
-        aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-        className={`${styles.sortable}`}
-      >
-        <button
-          type="button"
-          onClick={()=>toggleSort(column)}
-          className={styles.sortButton}
-          title={t('common:sort','Sort')!}
-        >
-          <span>{label}</span>
-          <span className={styles.sortIcon} aria-hidden>
-            {active ? (dir === 'asc' ? '▲' : '▼') : '↕'}
-          </span>
-        </button>
-      </th>
-    );
+      showToast(setToast, 'success', t('users:toasts.importDone', { created, updated, skipped }));
+      if (reasons.length) console.warn('Users import skipped:', reasons.join('\n'));
+    } catch (e: any) {
+      console.error(e);
+      showToast(setToast, 'error', t('users:toasts.importFail', { msg: e?.message || 'unknown' }));
+    } finally {
+      setBusyImport(false);
+    }
   }
 
   return (
     <div className={styles.wrapper}>
-      {/* Toast */}
-      {toast.show && (
-        <div
-          className={[
-            styles.toast,
-            toast.kind==='success'?styles.toastSuccess: toast.kind==='info'?styles.toastInfo:styles.toastError
-          ].join(' ')}
-          role="status" aria-live="polite"
-        >
-          {toast.message}
-        </div>
-      )}
 
+      {/* TOP TOOLBAR — Template / Export / Import */}
       <div className={styles.actionBar}>
-        <h2 className="text-xl font-semibold text-white">{t('users:manage', 'Manage Users')}</h2>
-        <div className="flex items-center gap-2">
-          {/* NEW: Search */}
-          <input
-            className={styles.input}
-            style={{ minWidth: 220 }}
-            placeholder={t('common:search','Search')!}
-            value={queryText}
-            onChange={(e)=>setQueryText(e.target.value)}
-          />
-          <button onClick={()=>setQueryText('')} className={styles.btn}>{t('common:clear','Clear')}</button>
-
-          <button onClick={downloadTemplate} className={`${styles.btn}`}>{t('common:downloadTemplate','Download template')}</button>
-          <button onClick={exportUsers} className={`${styles.btn}`}>{t('common:export','Export')}</button>
-          <button onClick={openFilePicker} disabled={busyImport}
-            className={`${styles.btn} ${styles.btnPrimary}`} >
-            {busyImport ? t('users:creating','Working...') : t('common:import','Import')}
+        <div className={styles.actionsRow}>
+          <button className={styles.btn} onClick={downloadTemplate}>{t('common:template','Template')}</button>
+          <button className={styles.btn} onClick={exportUsers}>{t('common:export','Export')}</button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={handleImportFile} />
+          <button className={styles.btn} onClick={openFilePicker} disabled={busyImport}>
+            {busyImport ? t('common:importing','Importing...') : t('common:import','Import')}
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleImportFile}
-            className={styles.fileInputHidden}
-          />
         </div>
       </div>
 
-      {/* Create User */}
-      <form onSubmit={createUser} className={`${styles.panel} grid grid-cols-1 md:grid-cols-8 gap-3 p-4`}>
-        <input className={styles.input} placeholder={t('users:firstName','First name')!}
-          value={form.firstName} onChange={(e)=>setForm(f=>({...f,firstName:e.target.value}))}/>
-        <input className={styles.input} placeholder={t('users:lastName','Last name')!}
-          value={form.lastName} onChange={(e)=>setForm(f=>({...f,lastName:e.target.value}))}/>
-        <input className={styles.input} placeholder={t('users:username','Username')!} autoComplete="username"
-          value={form.username} onChange={(e)=>setForm(f=>({...f,username:e.target.value}))}/>
-        <input className={styles.input} type="password" placeholder={t('users:password','Password')!} autoComplete="new-password"
-          value={form.password} onChange={(e)=>setForm(f=>({...f,password:e.target.value}))}/>
-        <input className={styles.input} type="date" placeholder={t('users:birthday','Birthday')!}
-          value={form.birthday} onChange={(e)=>setForm(f=>({...f,birthday:e.target.value}))}/>
-        <select className={styles.select} value={form.role}
-          onChange={(e)=>setForm(f=>({...f,role:e.target.value as Role}))}>
-          {['admin','teacher','student','kiosk'].map(r=><option key={r} value={r}>{r}</option>)}
-        </select>
-        <select className={styles.select} value={form.classGrade}
-          onChange={(e)=>setForm(f=>({...f,classGrade:e.target.value}))} disabled={form.role!=='student'}>
-          {CLASS_GRADE_VALUES.map(val => <option key={val} value={val}>{`כיתה ${val}`}</option>)}
-        </select>
-        <button type="submit" disabled={!canCreate||submitting}
-          className={`${styles.btn} ${styles.btnPrimary}`}>{submitting?t('users:creating','Creating...'):t('users:create','Create')}</button>
-      </form>
+      {/* Create (collapsed on mobile) */}
+      <section className={styles.panel} aria-labelledby="create-user-title">
+        <div className={styles.collapseHeader}>
+          <h3 id="create-user-title" className={styles.panelTitle}>
+            {t('users:new','Create User')}
+          </h3>
+          <button
+            type="button"
+            className={styles.collapseBtn}
+            aria-expanded={createOpen}
+            aria-controls="create-user-content"
+            onClick={() => setCreateOpen(v => !v)}
+          >
+            {createOpen ? t('common:hide','Hide ▲') : t('common:show','Show ▼')}
+          </button>
+        </div>
 
-      {/* Table */}
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <SortHeader column="username"  label={t('users:table.username','Username')} />
-              <SortHeader column="firstName" label={t('users:table.first','First')} />
-              <SortHeader column="lastName"  label={t('users:table.last','Last')} />
-              <SortHeader column="role"      label={t('users:table.role','Role')} />
-              <SortHeader column="birthday"  label={t('users:birthday','Birthday')} />
-              <SortHeader column="classGrade" label={t('users:classGrade','Class Grade')} />
-              <th className="w-56">{t('common:actions','Actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSorted.map(u=>(
-              <tr key={u.id}>
-                <td>{u.username}</td>
-                <td>{u.firstName||''}</td>
-                <td>{u.lastName||''}</td>
-                <td>{u.role}</td>
-                <td>{u.birthday||''}</td>
-                <td>{u.role==='student' ? (u.classGrade ? `כיתה ${toHebGrade(u.classGrade)}` : '') : ''}</td>
-                <td>
-                  <div className="flex gap-2">
-                    <button onClick={()=>openEdit(u)} className={styles.btn}>{t('common:edit','Edit')}</button>
-                    <button onClick={()=>removeUser(u.id)} className={`${styles.btn} ${styles.btnDanger}`}>{t('common:delete','Delete')}</button>
-                  </div>
-                </td>
+        <div
+          id="create-user-content"
+          className={`${styles.collapseContent} ${createOpen ? '' : styles.closed}`}
+        >
+          <div className={styles.collapseInner}>
+            {/* Horizontal scroll on small screens (LTR scroller, RTL content) */}
+            <div className={styles.hScroll} dir="ltr">
+              <form onSubmit={createUser} style={{ display: 'grid', gap: 8 }}>
+                <div className={styles.wideGrid} dir="rtl">
+                  <input className={styles.input} placeholder={t('users:username','Username')!}
+                         value={form.username || ''} onChange={e => setForm(v => ({ ...v, username: e.target.value }))} />
+                  <input className={styles.input} placeholder={t('users:firstName','First name')!}
+                         value={form.firstName || ''} onChange={e => setForm(v => ({ ...v, firstName: e.target.value }))} />
+                  <input className={styles.input} placeholder={t('users:lastName','Last name')!}
+                         value={form.lastName || ''} onChange={e => setForm(v => ({ ...v, lastName: e.target.value }))} />
+                  <select className={styles.select}
+                          value={form.role || 'student'}
+                          onChange={e => setForm(v => ({ ...v, role: e.target.value as Role }))}>
+                    <option value="student">{t('users:role.student','Student')}</option>
+                    <option value="teacher">{t('users:role.teacher','Teacher')}</option>
+                    <option value="admin">{t('users:role.admin','Admin')}</option>
+                    <option value="kiosk">{t('users:role.kiosk','Kiosk')}</option>
+                  </select>
+                  <input className={styles.input} placeholder={t('users:birthday','Birthday (yyyy-mm-dd)')!}
+                         value={form.birthday || ''} onChange={e => setForm(v => ({ ...v, birthday: e.target.value }))} />
+                  <input className={styles.input} placeholder={t('users:classId','Class ID')!}
+                         value={form.classId || ''} onChange={e => setForm(v => ({ ...v, classId: e.target.value }))} />
+                </div>
+
+                <button className={styles.btnPrimary} disabled={!canCreate || creating}>
+                  {creating ? t('common:saving','Saving…') : t('common:create','Create')}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* All users */}
+      <section className={styles.panel}>
+        <h3 className={styles.panelTitle}>{t('users:list','All Users')}</h3>
+
+        {/* SEARCH + ROLE FILTER under the title */}
+        <div className={styles.actionBar} style={{ marginBottom: 8 }}>
+          <div className={styles.actionsRow} style={{ flex: 1, minWidth: 0 }}>
+            <input
+              className={styles.input}
+              placeholder={t('common:search','Search')!}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <select
+              className={styles.select}
+              value={roleFilter}
+              onChange={e => setRoleFilter(e.target.value as Role | 'all')}
+            >
+              <option value="all">{t('users:filter.all','All')}</option>
+              <option value="student">{t('users:filter.student','Students')}</option>
+              <option value="teacher">{t('users:filter.teacher','Teachers')}</option>
+              <option value="admin">{t('users:filter.admin','Admins')}</option>
+              <option value="kiosk">{t('users:filter.kiosk','Kiosk')}</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Table (RTL-safe sideways scroll + start on right) */}
+        <div
+          ref={tableWrapRef}
+          className={styles.tableWrap}
+          role="region"
+          aria-label={t('users:list','All Users')!}
+          dir="ltr"
+        >
+          <table className={styles.table} dir="rtl">
+            <thead>
+              <tr>
+                <th>{t('users:table.username','Username')}</th>
+                <th>{t('users:table.name','Name')}</th>
+                <th>{t('users:table.role','Role')}</th>
+                <th>{t('users:table.birthday','Birthday')}</th>
+                <th>{t('users:table.classId','Class')}</th>
+                <th style={{ minWidth: 200 }}>{t('common:actions','Actions')}</th>
               </tr>
-            ))}
-            {!filteredSorted.length && (
-              <tr><td colSpan={7} style={{color:'var(--sb-muted)', padding:'1rem'}}>{t('common:noItems','No items')}</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id}>
+                  <td>{u.username}</td>
+                  <td>{labelUser(u)}</td>
+                  <td><span className={styles.badge}>{u.role}</span></td>
+                  <td>{u.birthday || '-'}</td>
+                  <td>{u.classId || '-'}</td>
+                  <td>
+                    <div className={styles.rowActions}>
+                      <button className={styles.btn} onClick={() => openEdit(u)}>{t('common:edit','Edit')}</button>
+                      <button className={styles.btnDanger} onClick={() => removeUser(u.id)}>{t('common:delete','Delete')}</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      {/* Edit Modal */}
+      {/* Edit modal */}
       {edit.open && (
-        <div className={styles.modalScrim} onClick={(e)=>{ if(e.target===e.currentTarget) closeEdit(); }}>
-          <div className={styles.modalCard}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-white">{t('users:editTitle','Edit User')}</h3>
-              <button className={styles.btn} onClick={closeEdit} aria-label={t('common:close','Close')!}>✕</button>
+        <div className={styles.modalScrim} onClick={closeEdit}>
+          <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.panelTitle}>{t('users:editTitle','Edit User')}</h3>
+
+            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              <input className={styles.input} placeholder={t('users:username','Username')!}
+                     value={edit.row.username || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, username: e.target.value } }) : prev)} />
+              <input className={styles.input} placeholder={t('users:firstName','First name')!}
+                     value={edit.row.firstName || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, firstName: e.target.value } }) : prev)} />
+              <input className={styles.input} placeholder={t('users:lastName','Last name')!}
+                     value={edit.row.lastName || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, lastName: e.target.value } }) : prev)} />
+              <select className={styles.select}
+                      value={edit.row.role}
+                      onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, role: e.target.value as Role } }) : prev)}>
+                <option value="student">{t('users:role.student','Student')}</option>
+                <option value="teacher">{t('users:role.teacher','Teacher')}</option>
+                <option value="admin">{t('users:role.admin','Admin')}</option>
+                <option value="kiosk">{t('users:role.kiosk','Kiosk')}</option>
+              </select>
+              <input className={styles.input} placeholder={t('users:birthday','Birthday (yyyy-mm-dd)')!}
+                     value={edit.row.birthday || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, birthday: e.target.value } }) : prev)} />
+              <input className={styles.input} placeholder={t('users:classId','Class ID')!}
+                     value={edit.row.classId || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, classId: e.target.value } }) : prev)} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:firstName','First name')}</label>
-                <input className={styles.input} value={edit.firstName}
-                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,firstName:e.target.value}:prev)} />
-              </div>
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:lastName','Last name')}</label>
-                <input className={styles.input} value={edit.lastName}
-                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,lastName:e.target.value}:prev)} />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:username','Username')}</label>
-                <input className={styles.input} value={edit.username}
-                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,username:e.target.value}:prev)} />
-              </div>
-
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:birthday','Birthday')}</label>
-                <input className={styles.input} type="date" value={edit.birthday}
-                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,birthday:e.target.value}:prev)} />
-              </div>
-
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:role','Role')}</label>
-                <select className={styles.select} value={edit.role}
-                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,role:e.target.value as Role}:prev)}>
-                  {['admin','teacher','student','kiosk'].map(r=><option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:classGrade','Class Grade')}</label>
-                <select className={styles.select} value={edit.classGrade}
-                  disabled={edit.role!=='student'}
-                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,classGrade:e.target.value}:prev)}>
-                  {CLASS_GRADE_VALUES.map(val => <option key={val} value={val}>{`כיתה ${val}`}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('users:newPasswordOptional','New password (optional)')}</label>
-                <input className={styles.input} type="password" placeholder={t('users:keepCurrentPassword','Leave empty to keep current')!}
-                  value={(edit as any).newPassword}
-                  onChange={(e)=>setEdit(prev=>prev.open?{...prev,newPassword:e.target.value}:prev)} />
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={closeEdit} className={styles.btn}>{t('common:cancel','Cancel')}</button>
-              <button onClick={saveEdit} disabled={savingEdit}
-                className={`${styles.btn} ${styles.btnPrimary}`}>{savingEdit?t('common:saving','Saving...'):t('common:saveChanges','Save changes')}</button>
+            <div className={styles.modalActions}>
+              <button className={styles.btnPrimary} onClick={saveEdit} disabled={saving}>
+                {saving ? t('common:saving','Saving…') : t('common:save','Save')}
+              </button>
+              <button className={styles.btn} onClick={closeEdit}>{t('common:cancel','Cancel')}</button>
             </div>
           </div>
         </div>
       )}
+
+      {toast.show && <div className={styles.toast}>{toast.message}</div>}
     </div>
   );
 }
