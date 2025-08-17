@@ -1,0 +1,162 @@
+/* ParliamentAdminTab.module.css */
+
+/* Layout */
+.wrapper {
+  padding: 12px;
+  color: var(--dash-text);
+}
+
+.actionBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actionsRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Sub-tabs */
+.subTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Buttons (DARK THEME) */
+.btn {
+  border: 1px solid var(--dash-border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  background: #16171b;
+  color: var(--dash-text);              /* <-- readable on dark */
+  font-size: 14px;
+  transition: background .2s ease, border-color .2s ease, transform .05s ease;
+}
+.btn:hover { background: #1f2026; }
+.btn:active { transform: translateY(1px); }
+
+.btnPrimary {
+  background: #2563eb;
+  border-color: #2b5ed1;
+  color: #fff;                          /* <-- readable on blue */
+}
+.btnPrimary:hover { background: #1f4ed3; }
+
+.btnDanger {
+  background: var(--dash-danger);
+  border-color: var(--dash-danger-600);
+  color: #fff;
+}
+.btnDanger:hover { background: var(--dash-danger-600); }
+
+/* Cards/Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.dateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.panel {
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--dash-surface-2);    /* <-- no white cards */
+  color: var(--dash-text);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-1);
+}
+
+.panelTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+/* Badges & meta */
+.badge {
+  background: #26272e;
+  border: 1px solid var(--dash-border);
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 2px 8px;
+  color: var(--dash-text);
+}
+.metaRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.metaText {
+  font-size: 13px;
+  color: var(--dash-muted);
+}
+
+/* Empty state */
+.empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--dash-muted);
+  border: 1px dashed var(--dash-border);
+  border-radius: 10px;
+}
+
+/* --- Create Date Form --- */
+.dateForm {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: end;
+  width: 100%;
+  max-width: 700px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dash-text);
+  opacity: .9;
+}
+
+.fieldControl {
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #0f1013;                  /* <-- dark inputs */
+  color: var(--dash-text);
+  font-size: 14px;
+}
+
+/* Mobile tweaks */
+@media (max-width: 640px) {
+  .dateForm {
+    grid-template-columns: 1fr;
+  }
+  .actionsRow {
+    width: 100%;
+  }
+  .btn {
+    width: 100%;
+  }
+}

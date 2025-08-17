@@ -1,25 +1,54 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Header.module.css';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/app';
+import { useEffectiveRole } from '../utils/requireRole';
 
 type HeaderProps = {
   title?: string;
   userName?: string;
+  /** Optional: parent-supplied role; hook will take precedence if available */
   role?: string;
   navMode?: 'full' | 'logoutOnly' | 'none';
 };
 
+function normalizeRole(r?: string) {
+  return (r || '').toString().trim().toLowerCase();
+}
+function dashboardPathForRole(role?: string) {
+  const r = normalizeRole(role);
+  if (r === 'admin') return '/admin';
+  if (r === 'teacher') return '/teacher';
+  if (r === 'student') return '/student';
+  if (r === 'kiosk') return '/display';
+  return '/';
+}
+function isParliamentPath(pathname: string) {
+  const p = (pathname || '').toLowerCase();
+  return p === '/parliament' || p.startsWith('/parliament/');
+}
+
 export default function Header({
   title = 'SchoolBoard',
   userName,
-  role,
+  role: roleProp,
   navMode = 'full',
 }: HeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // Prefer centralized role
+  const { role: hookRole } = useEffectiveRole();
+  const effectiveRole = normalizeRole(roleProp || hookRole);
+  const dashPath = dashboardPathForRole(effectiveRole);
+
+  const onParliament = isParliamentPath(location.pathname || '');
+  const showGoDashboard = navMode !== 'none' && onParliament;
+  // Show Parliament button on ANY non-parliament page (covers all dashboards & other pages)
+  const showGoParliament = navMode !== 'none' && !onParliament;
 
   const logout = async () => {
     try { await signOut(auth); } catch (e) { console.error('signOut failed:', e); }
@@ -27,7 +56,7 @@ export default function Header({
     navigate('/');
   };
 
-  // close menu when clicking outside
+  // close mobile menu on outside click
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (open && panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -42,20 +71,41 @@ export default function Header({
     <header className={styles.wrapper}>
       <div className={styles.left}>
         <span className={styles.title}>{title}</span>
-        {(role || userName) && (
+        {(effectiveRole || userName) && (
           <span className={styles.meta}>
-            {role || ''}{(role && userName) ? ' – ' : ''}{userName || ''}
+            {effectiveRole || ''}{(effectiveRole && userName) ? ' – ' : ''}{userName || ''}
           </span>
         )}
       </div>
 
       <div className={styles.right}>
-        {/* Desktop inline links */}
+        {/* Contextual quick links */}
+        {showGoDashboard && (
+          <button
+            onClick={() => navigate(dashPath)}
+            className={styles.linkBtn}
+            title="Go to your dashboard"
+          >
+            Go to Dashboard
+          </button>
+        )}
+        {showGoParliament && (
+          <button
+            onClick={() => navigate('/parliament')}
+            className={styles.linkBtn}
+            title="Go to Parliament"
+          >
+            Parliament
+          </button>
+        )}
+
+        {/* Desktop inline links (optional full nav) */}
         {navMode === 'full' && (
           <div className={styles.navLinks} aria-hidden>
-            <button onClick={() => navigate('/admin')} className={styles.linkBtn}>Dashboard</button>
+            <button onClick={() => navigate(dashPath)} className={styles.linkBtn}>Dashboard</button>
             <button onClick={() => navigate('/classes')} className={styles.linkBtn}>Classes</button>
             <button onClick={() => navigate('/lessons')} className={styles.linkBtn}>Lessons</button>
+            <button onClick={() => navigate('/parliament')} className={styles.linkBtn}>Parliament</button>
           </div>
         )}
 
@@ -72,7 +122,7 @@ export default function Header({
           </button>
         )}
 
-        {/* Logout (always if not 'none') */}
+        {/* Logout */}
         {navMode !== 'none' && (
           <button onClick={logout} className={styles.logoutBtn}>Logout</button>
         )}
@@ -85,7 +135,7 @@ export default function Header({
             className={[styles.menuPanel, open ? styles.open : ''].join(' ')}
             role="menu"
           >
-            <button className={styles.menuLink} onClick={() => { setOpen(false); navigate('/admin'); }}>
+            <button className={styles.menuLink} onClick={() => { setOpen(false); navigate(dashPath); }}>
               Dashboard
             </button>
             <button className={styles.menuLink} onClick={() => { setOpen(false); navigate('/classes'); }}>
@@ -93,6 +143,9 @@ export default function Header({
             </button>
             <button className={styles.menuLink} onClick={() => { setOpen(false); navigate('/lessons'); }}>
               Lessons
+            </button>
+            <button className={styles.menuLink} onClick={() => { setOpen(false); navigate('/parliament'); }}>
+              Parliament
             </button>
           </div>
         )}

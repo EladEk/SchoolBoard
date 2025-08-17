@@ -1,0 +1,200 @@
+/* ---- Page shell (AdminDashboard theme) ---- */
+.page {
+  min-height: 100vh;
+  background: var(--dash-bg);
+  color: var(--dash-text);
+  padding: 24px;
+}
+
+/* Header row under the global <Header/> */
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.title {
+  margin: 0;
+  font-size: clamp(18px, 2.2vw, 22px);
+  font-weight: 600;
+}
+
+/* Sections */
+.section {
+  background: var(--dash-surface);
+  color: var(--dash-text);
+  border: 1px solid var(--dash-border);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* Headings inside sections */
+.sectionTitle {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dash-text);
+}
+
+/* Grid / panels */
+.grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.panel {
+  background: var(--dash-surface-2);
+  color: var(--dash-text);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  padding: 14px;
+}
+
+/* Meta / badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--dash-text);
+  background: #26272e;
+  border: 1px solid var(--dash-border);
+}
+.meta {
+  font-size: 13px;
+  color: var(--dash-muted);
+}
+
+/* Actions + buttons */
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+button {
+  border: 1px solid var(--dash-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  cursor: pointer;
+  background: #16171b;
+  color: var(--dash-text);
+  transition: background .2s ease, transform .05s ease, border-color .2s ease;
+}
+button:hover { background: #1f2026; }
+button:active { transform: translateY(1px); }
+.btnPrimary {
+  background: #2563eb;
+  border-color: #2b5ed1;
+  color: #fff;
+}
+.btnGhost {
+  background: transparent;
+}
+.btnWarn {
+  background: var(--dash-danger);
+  border-color: var(--dash-danger-600);
+  color: #fff;
+}
+
+/* Empty state */
+.empty {
+  padding: 14px;
+  text-align: center;
+  color: var(--dash-muted);
+  border: 1px dashed var(--dash-border);
+  border-radius: var(--radius-md);
+}
+
+/* Modal */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 13, 14, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modalPanel { width: min(900px, 92vw); }
+.modalPanelNarrow { width: min(720px, 92vw); }
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Utilities */
+.mt0  { margin-top: 0; }
+.mt4  { margin-top: 4px; }
+.mt6  { margin-top: 6px; }
+.mt8  { margin-top: 8px; }
+.mt10 { margin-top: 10px; }
+.mb10 { margin-bottom: 10px; }
+.pre  { white-space: pre-wrap; }
+
+/* ---------- CRITICAL FIXES: force dark card/panel + readable text ---------- */
+/* These target CSS-module classnames by substring (e.g., _card_xxx) */
+.section :global([class*="card"]),
+.section :global([class*="panel"]) {
+  background: var(--dash-surface-2) !important;
+  color: var(--dash-text) !important;
+  border: 1px solid var(--dash-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-1) !important;
+}
+
+/* Ensure ALL descendants inside those cards inherit readable text */
+.section :global([class*="card"] *),
+.section :global([class*="panel"] *) {
+  color: inherit !important;
+}
+
+/* Notes items */
+.section :global([class*="noteItem"]) {
+  background: var(--dash-surface) !important;
+  border: 1px solid var(--dash-border) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 10px !important;
+  margin-bottom: 8px !important;
+  color: var(--dash-text) !important;
+}
+
+/* Badges/meta coming from child modules */
+.section :global([class*="badge"]) {
+  color: var(--dash-text) !important;
+  background: #26272e !important;
+  border: 1px solid var(--dash-border) !important;
+}
+.section :global([class*="meta"]) {
+  color: var(--dash-muted) !important;
+}
+
+/* Inputs/controls inside dark sections */
+.section input,
+.section select,
+.section textarea {
+  width: 100%;
+  background: #0f1013 !important;
+  color: var(--dash-text) !important;
+  border: 1px solid var(--dash-border) !important;
+  border-radius: var(--radius-md);
+  padding: 9px 10px;
+  outline: none;
+}
+.section label {
+  display: block;
+  font-weight: 600;
+  margin: 8px 0 6px;
+  color: var(--dash-text);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .page { padding: 16px; }
+  .section { padding: 12px; border-radius: 16px; }
+  .actions button { width: 100%; }
+}

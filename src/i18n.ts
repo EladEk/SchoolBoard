@@ -42,9 +42,13 @@ import display_he from './locales/he/display.json';
 import news_en from './locales/en/news.json';
 import news_he from './locales/he/news.json';
 
-// ---- login namespace (NEW) ----
+// ---- login namespace ----
 import login_en from './locales/en/login.json';
 import login_he from './locales/he/login.json';
+
+// ---- parliament namespace (NEW) ----
+import parliament_en from './locales/en/parliament.json';
+import parliament_he from './locales/he/parliament.json';
 
 const ns = [
   'common',
@@ -59,7 +63,8 @@ const ns = [
   'levelsMover',
   'display',
   'news',
-  'login', // NEW
+  'login',
+  'parliament' // NEW
 ] as const;
 
 function applyDirAndLang(lng?: string) {
@@ -73,7 +78,7 @@ void i18n
   .init({
     lng: 'he',
     fallbackLng: 'en',
-    ns: ns as unknown as string[], // appease TS
+    ns: ns as unknown as string[],
     defaultNS: 'common',
     fallbackNS: 'common',
     resources: {
@@ -91,6 +96,7 @@ void i18n
         display: display_en,
         news: news_en,
         login: login_en,
+        parliament: parliament_en // NEW
       },
       he: {
         common: common_he,
@@ -106,20 +112,15 @@ void i18n
         display: display_he,
         news: news_he,
         login: login_he,
-      },
+        parliament: parliament_he // NEW
+      }
     },
     interpolation: { escapeValue: false },
     debug: false,
-    returnEmptyString: false,
-    // Optionally: load language only ('he-IL' -> 'he')
-    // load: 'languageOnly',
+    returnEmptyString: false
   })
-  .then(() => {
-    applyDirAndLang();
-  });
+  .then(() => applyDirAndLang());
 
-i18n.on('languageChanged', (lng) => {
-  applyDirAndLang(lng);
-});
+i18n.on('languageChanged', (lng) => applyDirAndLang(lng));
 
 export default i18n;

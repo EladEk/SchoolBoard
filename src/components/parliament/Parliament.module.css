@@ -1,0 +1,138 @@
+/* Layout */
+page { display:block; }
+.wrap { padding: 16px; }
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section { margin-top: 24px; }
+
+/* Cards / Panels (match admin vibe) */
+.card, .panel {
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Grid lists */
+.grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* Badges / meta */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #eef3ff;
+}
+
+.meta { font-size: 13px; opacity: .8; }
+
+/* Form */
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.row { display:flex; gap: 12px; align-items: center; }
+
+textarea, input, select {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+  font-size: 14px;
+}
+
+label { font-weight: 600; display: block; margin: 8px 0 6px; }
+
+/* Buttons (aligned with admin) */
+button {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.btnPrimary { background: #3b82f6; color: #fff; }
+.btnGhost { background: transparent; border: 1px solid rgba(0,0,0,.15); }
+.btnWarn { background: #ef4444; color: #fff; }
+
+/* Notes */
+.noteItem {
+  border-top: 1px dashed rgba(0,0,0,.1);
+  padding: 10px 0;
+}
+
+/* Modal */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modalPanel {
+  width: min(900px, 92vw);
+}
+.modalPanelNarrow {
+  width: min(720px, 92vw);
+}
+.modalCloseRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Utility */
+.mt0 { margin-top: 0; }
+.mt4 { margin-top: 4px; }
+.mt6 { margin-top: 6px; }
+.mt8 { margin-top: 8px; }
+.mt10 { margin-top: 10px; }
+.mb10 { margin-bottom: 10px; }
+.fontSmall { font-size: 12px; }
+.font13 { font-size: 13px; }
+.pre { white-space: pre-wrap; }
+
+/* Empty state */
+.empty {
+  padding: 14px;
+  text-align: center;
+  opacity: .7;
+}
+
+/* Mobile tweaks */
+@media (max-width: 640px) {
+  .row { flex-direction: column; align-items: stretch; }
+  .actions button { width: 100%; }
+}

@@ -12,6 +12,9 @@ import StudentDashboard from './pages/StudentDashboard';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 
+import Parliament from './pages/Parliament';
+import ParliamentAdmin from './pages/ParliamentAdmin';
+
 import { RequireRole } from './utils/requireRole';
 
 function UnauthorizedPage() {
@@ -66,6 +69,22 @@ const router = createBrowserRouter([
     element: (
       <RequireRole allowed={['student','admin']}>
         <StudentDashboard />
+      </RequireRole>
+    ),
+  },
+  {
+    path: '/parliament',
+    element: (
+      <RequireRole allowed={['student','teacher','admin']}>
+        <Parliament />
+      </RequireRole>
+    ),
+  },
+  {
+    path: '/parliament/admin',
+    element: (
+      <RequireRole allowed={['teacher','admin']}>
+        <ParliamentAdmin />
       </RequireRole>
     ),
   },

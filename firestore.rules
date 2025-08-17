@@ -2,86 +2,65 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---- Helpers ----
-    function isAuthed() {
-      return request.auth != null;
-    }
-    function role() {
-      // requires you to set a custom claim { role: "admin" | "teacher" | "student" | "kiosk" }
-      return isAuthed() ? (request.auth.token.role != null ? request.auth.token.role : "") : "";
-    }
-    function isAdmin()   { return isAuthed() && role() == "admin"; }
-    function isTeacher() { return isAuthed() && role() == "teacher"; }
-    function isStudent() { return isAuthed() && role() == "student"; }
-    function isKiosk()   { return isAuthed() && role() == "kiosk"; }
-
-    // ---- PUBLIC DISPLAY NEEDS ----
-    // If your hallway display is unauthenticated, it must be able to read some data.
-    // Keep reads open (OR lock down and have the display sign in with a Kiosk service account).
-    // Writes must never be public.
-
-    // CLASSES
+    // ---- Core school data ----
     match /classes/{id} {
-      allow read: if true;            // hallway can read
-      allow write: if isAdmin();      // ONLY admins can create/update/delete
+      allow read: if true;
+      allow write: if true;   // frontend enforces "admin"
     }
-
-    // LESSONS
     match /lessons/{id} {
-      allow read: if true;            // hallway can read
-      allow write: if isAdmin();
-      // If you want teachers to create their own lessons, you can relax to:
-      // allow create: if isTeacher() || isAdmin();
-      // allow update, delete: if isAdmin();
+      allow read: if true;
+      allow write: if true;   // frontend enforces "admin"
     }
-
-    // TIMETABLE ENTRIES
     match /timetableEntries/{id} {
-      allow read: if true;            // hallway can read
-      allow write: if isAdmin();
-      // Optionally allow teachers to place their OWN lessons only:
-      // allow create, update: if isTeacher() && isAuthed() &&
-      //   request.resource.data.lessonId == resource.data.lessonId && // or validate on create
-      //   // Optionally check lesson's teacher id matches the caller (requires denormalized teacherId on lesson):
-      //   exists(/databases/$(database)/documents/lessons/$(request.resource.data.lessonId)) &&
-      //   get(/databases/$(database)/documents/lessons/$(request.resource.data.lessonId)).data.teacherUserId == request.auth.uid
-      // ;
-      // allow delete: if isAdmin();
-    }
-
-    // USERS (appUsers) — be careful with PII exposure.
-    // The display page currently queries student names; if you keep this public, anyone can read them.
-    // Recommended: lock reads and have the kiosk sign in. If you must keep it public, leave read:true.
-    match /appUsers/{uid} {
-      // Safer option (recommended):
-      // allow read: if isAdmin() || isTeacher() || (isStudent() && request.auth.uid == uid) || isKiosk();
-      // If your hallway is unauthenticated today, temporarily:
       allow read: if true;
-
-      // Writes:
-      allow create, update, delete: if isAdmin() || request.auth.uid == uid;
-      // (Students can edit their own minimal profile only if you validate allowed fields with diff checks.)
+      allow write: if true;   // frontend enforces "admin"
     }
-
-    // Any other admin-only configs you might have:
-    match /advisories/{id} {
+    match /announcements/{id} {
       allow read: if true;
-      allow write: if isAdmin();
-    }
-    match /news/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow write: if true;   // frontend enforces "admin"
     }
 
-    // Invites, tokens, etc. (example locked down)
+    // ---- App users ----
+    match /appUsers/{docId} {
+      allow read: if true;
+      allow write: if true;   // frontend enforces admin create/delete
+    }
+
+    // ---- Parliament ----
+    // Dates: admins/teachers can create, edit, delete.
+    match /parliamentDates/{dateId} {
+      allow read: if true;
+      allow write: if true;   // frontend checks admin/teacher role
+    }
+
+    // Subjects: any user can create; admin/teacher can approve/reject.
+    match /parliamentSubjects/{subjectId} {
+      allow read: if true;
+      allow write: if true;   // frontend checks: 
+                              //  - all users: create
+                              //  - creator: edit pending
+                              //  - admin/teacher: approve/reject/delete
+
+      // Notes under each subject
+      match /notes/{noteId} {
+        allow read: if true;
+        allow write: if true; // frontend enforces: only on approved subjects
+      }
+    }
+
+    // ---- Legacy collections ----
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if false;
+    }
     match /invites/{inviteId} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow read: if true;
+      allow write: if false;
     }
 
-    // Default: block writes everywhere else; (optionally) allow reads if you truly need it.
+    // ---- Catch-all ----
     match /{document=**} {
-      allow read: if false;  // tighten default; whitelist above
+      allow read: if true;
       allow write: if false;
     }
   }

@@ -10,6 +10,7 @@ import LessonsScheduler from '../components/lessons/LessonsScheduler';
 import TeacherAdvisorsAdmin from '../components/admin/TeacherAdvisorsAdmin';
 import LevelsMover from '../components/admin/LevelsMover';
 import NewsAdmin from '../components/admin/NewsAdmin';
+import ParliamentAdminTab from '../components/admin/ParliamentAdminTab';
 
 import styles from './AdminDashboard.module.css';
 import { withRole } from '../utils/requireRole';
@@ -19,10 +20,10 @@ function AdminDashboard() {
   const navigate = useNavigate();
 
   const [active, setActive] = useState<
-    'users' | 'classes' | 'lessons' | 'timetable' | 'advisories' | 'levels' | 'news'
+    'users' | 'classes' | 'lessons' | 'timetable' | 'advisories' | 'levels' | 'news' | 'parliament'
   >('users');
 
-  const [tabsOpen, setTabsOpen] = useState(false); // NEW: mobile tabs collapsed/expanded
+  const [tabsOpen, setTabsOpen] = useState(false);
 
   const session = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('session') || '{}') || {}; } catch { return {}; }
@@ -41,9 +42,9 @@ function AdminDashboard() {
     { key: 'advisories', label: t('dashboard:tabs.advisories', 'Advisories') },
     { key: 'levels',     label: t('dashboard:tabs.levels', 'הזזת רמות') },
     { key: 'news',       label: t('dashboard:tabs.news', 'News') },
+    { key: 'parliament', label: t('parliament:adminTitle', 'Parliament Admin') },
   ]), [t]);
 
-  // Pick tab and auto-close the mobile panel
   function pickTab(key: typeof active) {
     setActive(key);
     setTabsOpen(false);
@@ -61,13 +62,25 @@ function AdminDashboard() {
 
           <div className={styles.rightControls}>
             <div className={styles.sessionInfo}>
-              <span style={{ fontWeight: 600 }}>{(session as any)?.displayName || 'Admin'}</span>
+              <span style={{ fontWeight: 600 }}>
+                {(session as any)?.displayName || 'Admin'}
+              </span>
               {(session as any)?.role ? (
                 <span className={styles.roleSep}>
                   {t('dashboard:dashboard.roleSeparator', ' · ')}{(session as any).role}
                 </span>
               ) : null}
             </div>
+
+            {/* NEW: quick link to public Parliament page */}
+            <button
+              type="button"
+              className={styles.quickBtn}
+              onClick={() => navigate('/parliament')}
+              title={t('parliament:link', 'Parliament')}
+            >
+              {t('parliament:link', 'Parliament')}
+            </button>
 
             <button onClick={handleLogout} className={styles.logoutBtn}>
               {t('dashboard:dashboard.logout', 'Logout')}
@@ -116,6 +129,7 @@ function AdminDashboard() {
           {active === 'advisories' && <TeacherAdvisorsAdmin />}
           {active === 'levels' && <LevelsMover />}
           {active === 'news' && <NewsAdmin />}
+          {active === 'parliament' && <ParliamentAdminTab />}
         </section>
       </main>
     </div>

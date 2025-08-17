@@ -39,10 +39,14 @@
   white-space: nowrap;
 }
 
+/* Right side (buttons, nav, burger, logout) */
 .right {
   display: flex;
   align-items: center;
   gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;         /* <-- keep buttons visible on narrow widths */
+  max-width: 100%;
 }
 
 /* ---- Buttons ---- */
@@ -55,6 +59,8 @@
   border-radius: 8px;
   cursor: pointer;
   transition: color 120ms ease, background 120ms ease;
+  white-space: nowrap;     /* <-- don’t break text */
+  flex: 0 0 auto;          /* <-- don’t shrink away */
 }
 .linkBtn:hover,
 .linkBtn:focus-visible {
@@ -73,6 +79,7 @@
   cursor: pointer;
   font-weight: 600;
   transition: background 120ms ease, transform 60ms ease;
+  flex: 0 0 auto;
 }
 .logoutBtn:hover { background: #ef4444; }
 .logoutBtn:active { transform: translateY(1px); }
@@ -94,6 +101,7 @@
   padding: 6px 10px;
   border-radius: 8px;
   cursor: pointer;
+  flex: 0 0 auto;
 }
 .menuIcon {
   display: inline-block;
@@ -107,6 +115,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 /* Slide-down panel shown only on mobile */
@@ -120,6 +130,7 @@
   flex-direction: column;
   padding: 10px;
   gap: 6px;
+  z-index: 60;
 }
 .menuPanel.open { display: flex; }
 
@@ -143,7 +154,8 @@
   .menuToggle { display: inline-flex; align-items: center; gap: 8px; }
   .navLinks { display: none; }
 
-  /* keep logout next to burger */
+  /* keep quick link (Parliament / Go to Dashboard) visible next to burger + logout */
+  .right .linkBtn { order: -1; }
   .right { gap: 6px; }
 }
 

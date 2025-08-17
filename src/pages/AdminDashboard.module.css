@@ -60,11 +60,27 @@
 .rightControls {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;                 /* was 16px */
+  flex-wrap: wrap;           /* keep buttons from overflowing */
+  justify-content: flex-end; /* keep to the right */
 }
 
 .sessionInfo { font-size: 13px; color: #d6d7db; }
 .roleSep { color: var(--dash-muted); }
+
+/* quick link to Parliament */
+.quickBtn {
+  background: #16171b;
+  border: 1px solid var(--dash-border);
+  color: var(--dash-text);
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, transform .05s ease;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.quickBtn:hover { background: #1f2026; }
 
 /* logout */
 .logoutBtn {
@@ -75,6 +91,7 @@
   border-radius: 10px;
   cursor: pointer;
   transition: background .2s ease, transform .05s ease;
+  flex: 0 0 auto;
 }
 .logoutBtn:hover { background: var(--dash-danger-600); }
 .logoutBtn:active { transform: translateY(1px); }
@@ -119,6 +136,8 @@
     gap: 8px;
     padding-inline: 16px;
   }
+
+  .rightControls { gap: 8px; } /* a bit tighter on mobile */
 
   .tabsToggle { display: inline-block; }
 
