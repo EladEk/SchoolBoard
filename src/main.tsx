@@ -25,6 +25,7 @@ function UnauthorizedPage() {
     </div>
   );
 }
+
 function NotFoundPage() {
   return (
     <div style={{ minHeight:'100vh', display:'grid', placeItems:'center', background:'#0b0b0b', color:'#fff' }}>
@@ -74,6 +75,7 @@ const router = createBrowserRouter(
     { path: '/unauthorized', element: <UnauthorizedPage /> },
     { path: '*', element: <NotFoundPage /> },
   ],
+  // ✅ v7 future flags — TS now understands them thanks to our .d.ts shim
   {
     future: {
       v7_startTransition: true,
@@ -84,15 +86,8 @@ const router = createBrowserRouter(
   }
 );
 
-const providerFuture = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-  v7_fetcherPersist: true,
-  v7_normalizeFormMethod: true,
-};
-
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <RouterProvider router={router} future={providerFuture} />
+    <RouterProvider router={router} />
   </React.StrictMode>
 );
