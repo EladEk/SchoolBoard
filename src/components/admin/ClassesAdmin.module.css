@@ -1,232 +1,240 @@
-/* ---------- Page shell ---------- */
-.wrap {
-  padding: 1rem;
+:root {
+  --sb-bg: #0b0b0c;
+  --sb-surface: #141416;
+  --sb-surface-2: #1b1c1f;
+  --sb-border: #2a2b30;
+  --sb-muted: #a6a7ab;
+  --sb-text: #f2f3f5;
+  --sb-primary: #2563eb;
+  --sb-danger: #dc2626;
+
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --shadow-1: 0 6px 18px rgba(0,0,0,.35);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
+/* ---------- Page layout ---------- */
+.wrapper {
+  display: grid;
+  gap: 16px;
+  overflow-x: hidden; /* page never scrolls sideways; inner sections can */
+  padding-inline: 12px;
 }
+@media (min-width: 768px) { .wrapper { padding-inline: 16px; } }
 
-.card {
-  background: #2a2a2a;
-  border-radius: 10px;
+/* ---------- Card / sections ---------- */
+.panel,
+.actionBar {
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--radius-lg);
   padding: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.18), 0 2px 10px rgba(0,0,0,.12);
-  margin-bottom: 16px;
+  box-shadow: var(--shadow-1);
+  min-width: 0;        /* allow children to shrink in flex/grid */
 }
 
-.cardTitleRow {
+.actionBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  flex-wrap: wrap;     /* stack on mobile */
 }
 
-.cardTitle {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 8px;
-}
-
-/* ---------- Actions / Buttons ---------- */
-.actions {
+.actionsRow {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  min-width: 0;        /* lets inputs shrink inside flex */
 }
 
-.btn,
-.btnSecondary,
-.btnSmall,
-.btnSmallDanger,
-.btnDanger,
-.btnPrimary {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: transform .06s ease, opacity .15s ease, background-color .15s ease, border-color .15s ease;
-  user-select: none;
+/* ---------- Titles ---------- */
+.panelTitle {
+  margin: 0 0 8px 0;
+  font-size: clamp(16px, 3.5vw, 20px);
 }
 
-.btn:active,
-.btnSecondary:active,
-.btnSmall:active,
-.btnSmallDanger:active {
-  transform: translateY(1px);
+/* ---------- Inputs & Buttons ---------- */
+.input, .select {
+  width: 100%;
+  background: var(--sb-surface-2);
+  border: 1px solid var(--sb-border);
+  color: var(--sb-text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+  min-width: 0;          /* prevents textboxes from forcing overflow */
+}
+.input:focus, .select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.25);
 }
 
 .btn {
-  background-color: #3b3b3b;
-  color: #fff;
-}
-.btn:hover { background-color: #4d4d4d; }
-
-.btnSecondary {
-  background: transparent;
-  color: #d7e3ff;
-  border: 1px solid rgba(125, 165, 255, 0.35);
-}
-.btnSecondary:hover { border-color: rgba(125, 165, 255, 0.65); }
-
-.btnPrimary { background-color: #0078d4; color: #fff; }
-.btnPrimary:hover { background-color: #0063b1; }
-
-.btnDanger { background-color: #b91c1c; color: #fff; }
-.btnDanger:hover { background-color: #991b1b; }
-
-.btnSmall {
-  background: #3b3b3b;
-  color: #fff;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  border-radius: 6px;
-}
-.btnSmall:hover { background: #4d4d4d; }
-
-.btnSmallDanger {
-  background: #b91c1c;
-  color: #fff;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  border-radius: 6px;
-}
-.btnSmallDanger:hover { background: #991b1b; }
-
-/* ---------- Form ---------- */
-.form {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-.input, .select {
-  background-color: #1f1f1f;
-  border: 1px solid #3b3b3b;
+  background: var(--sb-surface-2);
+  border: 1px solid var(--sb-border);
+  color: var(--sb-text);
   padding: 10px 12px;
-  border-radius: 8px;
-  color: white;
-  width: 100%;
-  font-size: 0.95rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform .05s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+  max-width: 100%;      /* never be wider than the column */
 }
-.input:focus, .select:focus {
-  outline: none;
-  border-color: #0078d4;
+.btn:hover { background: #23252a; }
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+.btnPrimary { background: var(--sb-primary); border-color: #1f4fd4; color: #fff; }
+.btnPrimary:hover { background: #1f4fd4; }
+.btnDanger  { background: var(--sb-danger); color: #fff; border-color: #b91c1c; }
+.btnDanger:hover { background: #b91c1c; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.06);
+  font-size: 12px;
+  color: #e7eaf0;
 }
 
-.label {
-  color: #bfc6d1;
-  font-size: 0.85rem;
-  margin-bottom: -4px;
-}
-
-.checkbox {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  color: #d3dae6;
-}
-
-.row {
+/* ---------- Create panel: collapse ---------- */
+.collapseHeader {
   display: flex;
-  gap: 8px;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px 0;
+  min-width: 0;
   flex-wrap: wrap;
 }
+.collapseBtn {
+  background: var(--sb-surface-2);
+  color: var(--sb-text);
+  border: 1px solid var(--sb-border);
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.collapseBtn:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
 
-/* ---------- Table ---------- */
-.tableWrap {
+.collapseContent {
+  overflow: hidden;
+  transition: grid-template-rows .25s ease, opacity .2s ease;
+  display: grid;
+  grid-template-rows: 1fr;
+}
+.collapseContent.closed {
+  grid-template-rows: 0fr;
+  opacity: .95;
+}
+.collapseInner { min-height: 0; }
+
+/* ---------- Create form layout ---------- */
+.hScroll {
   overflow-x: auto;
-  margin-top: 1rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pan-y;
+  direction: ltr;    /* keep in case we ever need horizontal */
+}
+.wideGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  direction: rtl;
 }
 
+/* ---------- Table (All Users) ---------- */
+.tableWrap {
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;                /* sideways scroll on phones */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable both-edges;
+  touch-action: pan-x pan-y;
+  direction: ltr;                  /* RTL-safe scrolling */
+  max-width: 100%;
+}
 .table {
   width: 100%;
   border-collapse: collapse;
-  background-color: #1f1f1f;
-  border-radius: 10px;
-  overflow: hidden;
+  font-size: 14px;
+  direction: rtl;                  /* keep the text RTL inside the LTR scroller */
 }
-.table th, .table td {
-  border: 1px solid #3b3b3b;
-  padding: 10px;
-  text-align: left;
-  color: white;
+.table thead th {
+  text-align: start;
+  background: #1a1b1f;
+  color: var(--sb-muted);
+  border-bottom: 1px solid var(--sb-border);
+  padding: 10px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
-.table th {
-  background-color: #2d2d2d;
-  font-weight: 600;
+.table tbody td {
+  padding: 12px;
+  border-top: 1px solid var(--sb-border);
+  color: var(--sb-text);
 }
+.rowActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ---------- Modal ---------- */
+.modalScrim {
+  position: fixed; inset: 0;
+  background: rgba(10,10,12,.6); backdrop-filter: blur(2px);
+  display: grid; place-items: center; z-index: 90; padding: 20px;
+}
+.modalCard {
+  width: min(720px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-1);
+}
+.modalActions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 
 /* ---------- Toast ---------- */
 .toast {
-  padding: 0.6rem 0.9rem;
-  border-radius: 8px;
-  margin-top: 12px;
-  font-size: 0.9rem;
-  background: #1e40af;
-  color: #fff;
+  position: fixed; top: 16px; right: 16px; z-index: 1000;
+  background: var(--sb-surface-2); color: var(--sb-text);
+  border: 1px solid var(--sb-border);
+  padding: 10px 12px; border-radius: 12px; box-shadow: var(--shadow-1);
 }
 
-/* ---------- File input (hidden) ---------- */
-.fileInputHidden { display: none; }
-
-/* ---------- Modal (popup) ---------- */
-@keyframes popupIn {
-  from { opacity: 0; transform: translateY(6px) scale(.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.modalScrim {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0,0,0,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-  padding: 20px;
-}
-
-.modalCard {
-  background-color: #2a2a2a;
-  padding: 16px;
-  border-radius: 10px;
-  width: 100%;
-  max-width: 520px;
-  max-height: 90vh;
-  overflow: auto;
-  animation: popupIn .14s ease-out;
-  box-shadow: 0 14px 40px rgba(0,0,0,.35), 0 2px 12px rgba(0,0,0,.25);
-}
-
-.modalActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-/* ---------- Responsive ---------- */
+/* ---------- Mobile tweaks ---------- */
 @media (max-width: 768px) {
-  .header { flex-direction: column; align-items: stretch; gap: 8px; }
-  .cardTitleRow { flex-direction: column; align-items: stretch; gap: 6px; }
-  .actions { width: 100%; }
-  .actions .btn,
-  .actions .btnSecondary,
-  .actions .btnPrimary,
-  .actions .btnDanger { flex: 1 1 auto; }
-  .row { gap: 6px; }
-  .modalScrim { padding: 12px; }
-  .modalCard { max-width: 96vw; }
+  .actionBar { flex-direction: column; align-items: stretch; }
+  .actionsRow { width: 100%; }
+  .btn, .btnPrimary, .btnDanger { width: 100%; text-align: center; }
+
+  .collapseBtn { width: 100%; text-align: center; }
+  .modalCard { width: 96vw; padding: 14px; }
+
+  /* NEW: show ALL fields stacked (no sideways scroll needed) */
+  .wideGrid {
+    grid-template-columns: 1fr; /* single column */
+    min-width: 0;               /* allow shrinking; no horizontal scroll */
+  }
+
+  /* table widths tuned for small phones */
+  .table { min-width: 560px; }
 }
-/* Keep table usable on phones: allow horizontal scroll inside wrapper */
-@media (max-width: 768px) {
-  .table { min-width: 640px; }
+
+@media (max-width: 420px) {
+  .panel, .actionBar { padding: 12px; }
+  .table { min-width: 520px; }
 }

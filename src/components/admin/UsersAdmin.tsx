@@ -21,11 +21,12 @@ type AppUser = {
   firstName?: string;
   lastName?: string;
   role: Role;
-  birthday?: string;
-  classId?: string;
+  birthday?: string;   // stored as DD-MM-YYYY
+  classId?: string;    // stored as א..יב
   createdAt?: any;
 };
 
+/** --------- Helpers --------- */
 function norm(v: string) { return (v || '').trim(); }
 function normLower(v: string) { return norm(v).toLowerCase(); }
 function labelUser(u: Partial<AppUser>) {
@@ -39,6 +40,23 @@ function showToast(
 ) {
   setToast({ show: true, kind, message });
   setTimeout(() => setToast({ show: false }), 2600);
+}
+
+/** Hebrew class IDs א..יב */
+const CLASS_HE: string[] = ['א','ב','ג','ד','ה','ו','ז','ח','ט','י','יא','יב'];
+
+/** Date format helpers */
+function toDDMMYYYY(isoYYYYMMDD: string): string {
+  // from "2025-08-17" to "17-08-2025"
+  if (!isoYYYYMMDD || !/^\d{4}-\d{2}-\d{2}$/.test(isoYYYYMMDD)) return '';
+  const [y,m,d] = isoYYYYMMDD.split('-');
+  return `${d}-${m}-${y}`;
+}
+function fromDDMMYYYYToISO(ddmmyyyy: string): string {
+  // from "17-08-2025" to "2025-08-17" (best effort)
+  if (!ddmmyyyy || !/^\d{2}-\d{2}-\d{4}$/.test(ddmmyyyy)) return '';
+  const [d,m,y] = ddmmyyyy.split('-');
+  return `${y}-${m}-${d}`;
 }
 
 export default function UsersAdmin() {
@@ -55,24 +73,36 @@ export default function UsersAdmin() {
     return window.innerWidth > 768;
   });
 
-  const [form, setForm] = useState<Partial<AppUser>>({
+  // Create form state
+  const [form, setForm] = useState<{
+    username: string;
+    firstName: string;
+    lastName: string;
+    role: Role;
+    birthdayRaw: string; // yyyy-mm-dd (for input[type=date])
+    classId: string;     // א..יב
+  }>({
     username: '',
     firstName: '',
     lastName: '',
     role: 'student',
-    birthday: '',
+    birthdayRaw: '',
+    classId: '',
   });
   const [creating, setCreating] = useState(false);
 
-  const [edit, setEdit] = useState<{ open: false } | { open: true; row: AppUser }>({ open: false });
+  // Edit modal
+  const [edit, setEdit] = useState<{ open: false } | { open: true; row: AppUser; birthdayRaw: string }>({ open: false });
   const [saving, setSaving] = useState(false);
 
+  // Top actions
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busyImport, setBusyImport] = useState(false);
 
-  // users table scroller (so we can jump to the right edge by default)
+  // Users table scroller
   const tableWrapRef = useRef<HTMLDivElement | null>(null);
 
+  /** Live list */
   useEffect(() => {
     const q = query(collection(db, 'appUsers'), orderBy('usernameLower'));
     const unsub = onSnapshot(
@@ -86,7 +116,7 @@ export default function UsersAdmin() {
     return () => unsub();
   }, [t]);
 
-  // When list renders/changes, scroll the table wrapper to the rightmost side (RTL-friendly)
+  /** Scroll the users table to the right on render */
   useEffect(() => {
     const el = tableWrapRef.current;
     if (!el) return;
@@ -104,19 +134,21 @@ export default function UsersAdmin() {
   }, [items, search, roleFilter]);
 
   const canCreate = useMemo(
-    () => !!norm(form.username || '') && !!norm(form.role || ''),
+    () => !!norm(form.username) && !!norm(form.role),
     [form]
   );
 
+  /** Create */
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
     if (!canCreate || creating) return;
 
     try {
       setCreating(true);
-      const username = norm(form.username || '');
+      const username = norm(form.username);
       const usernameLower = username.toLowerCase();
 
+      // Prevent duplicates
       const dup = await getDocs(
         query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
       );
@@ -125,17 +157,21 @@ export default function UsersAdmin() {
         return;
       }
 
+      // convert date from yyyy-mm-dd to dd-mm-yyyy
+      const birthday = toDDMMYYYY(form.birthdayRaw);
+
       await addDoc(collection(db, 'appUsers'), {
-        username, usernameLower,
-        firstName: norm(form.firstName || ''),
-        lastName: norm(form.lastName || ''),
-        role: (form.role || 'student'),
-        birthday: norm(form.birthday || ''),
-        classId: norm(form.classId || ''),
+        username,
+        usernameLower,
+        firstName: norm(form.firstName),
+        lastName: norm(form.lastName),
+        role: form.role,
+        birthday,                 // saved as DD-MM-YYYY
+        classId: form.classId,    // saved as א..יב
         createdAt: serverTimestamp(),
       });
 
-      setForm({ username: '', firstName: '', lastName: '', role: 'student', birthday: '' });
+      setForm({ username: '', firstName: '', lastName: '', role: 'student', birthdayRaw: '', classId: '' });
       showToast(setToast, 'success', t('users:toasts.created', { username }));
     } catch (e: any) {
       showToast(setToast, 'error', t('users:toasts.createFail', { msg: e?.message || 'unknown' }));
@@ -144,18 +180,24 @@ export default function UsersAdmin() {
     }
   }
 
-  function openEdit(row: AppUser) { setEdit({ open: true, row }); }
+  /** Edit/Save/Delete */
+  function openEdit(row: AppUser) {
+    const birthdayRaw = row.birthday ? fromDDMMYYYYToISO(row.birthday) : '';
+    setEdit({ open: true, row, birthdayRaw });
+  }
   function closeEdit() { setEdit({ open: false }); }
 
   async function saveEdit() {
     if (!edit.open || saving) return;
-    const { row } = edit;
+    const { row, birthdayRaw } = edit;
+
     try {
       setSaving(true);
 
       const username = norm(row.username || '');
       const usernameLower = username.toLowerCase();
 
+      // Duplicate check (exclude this row)
       if (username) {
         const dup = await getDocs(
           query(collection(db, 'appUsers'), where('usernameLower', '==', usernameLower))
@@ -168,13 +210,15 @@ export default function UsersAdmin() {
         }
       }
 
+      const birthday = birthdayRaw ? toDDMMYYYY(birthdayRaw) : '';
+
       await updateDoc(doc(db, 'appUsers', row.id), {
         username,
         usernameLower,
         firstName: norm(row.firstName || ''),
         lastName: norm(row.lastName || ''),
         role: (row.role || 'student'),
-        birthday: norm(row.birthday || ''),
+        birthday,                 // keep DD-MM-YYYY in DB
         classId: norm(row.classId || ''),
       });
 
@@ -197,13 +241,14 @@ export default function UsersAdmin() {
     }
   }
 
+  /** Excel export/template/import */
   function exportUsers() {
     const rows = filtered.map(u => ({
       username: u.username || '',
       firstName: u.firstName || '',
       lastName: u.lastName || '',
       role: u.role || '',
-      birthday: u.birthday || '',
+      birthday: u.birthday || '',  // already DD-MM-YYYY
       classId: u.classId || '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows, {
@@ -217,8 +262,8 @@ export default function UsersAdmin() {
 
   function downloadTemplate() {
     const rows = [
-      { username: 'teacher.alex', firstName: 'Alex', lastName: 'Cohen', role: 'teacher', birthday: '1987-04-11', classId: '' },
-      { username: 'student.neta', firstName: 'Neta', lastName: 'Levi', role: 'student', birthday: '2013-06-25', classId: 'CLS-ABCD' },
+      { username: 'teacher.alex', firstName: 'Alex', lastName: 'Cohen', role: 'teacher', birthday: '11-04-1987', classId: 'י' },
+      { username: 'student.neta', firstName: 'Neta', lastName: 'Levi', role: 'student', birthday: '25-06-2013', classId: 'ו' },
     ];
     const ws = XLSX.utils.json_to_sheet(rows, {
       header: ['username', 'firstName', 'lastName', 'role', 'birthday', 'classId'],
@@ -244,6 +289,7 @@ export default function UsersAdmin() {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
+      // Map existing by usernameLower
       const existing = new Map<string, AppUser>();
       for (const u of items) {
         if (u.usernameLower) existing.set(u.usernameLower, u);
@@ -258,19 +304,22 @@ export default function UsersAdmin() {
         const firstName = norm(String(r['firstName'] ?? r['FirstName'] ?? ''));
         const lastName  = norm(String(r['lastName']  ?? r['LastName']  ?? ''));
         const role      = norm(String(r['role']      ?? r['Role']      ?? 'student')) as Role;
-        const birthday  = norm(String(r['birthday']  ?? r['Birthday']  ?? ''));
+        const birthday  = norm(String(r['birthday']  ?? r['Birthday']  ?? ''));  // expect DD-MM-YYYY
         const classId   = norm(String(r['classId']   ?? r['ClassId']   ?? ''));
 
         if (!username) { skipped++; reasons.push(`Row ${i + 2}: missing username`); continue; }
-        const key = username.toLowerCase();
 
         const payload: Partial<AppUser> = {
-          username, usernameLower: key, firstName, lastName, role, birthday, classId
+          username,
+          usernameLower: username.toLowerCase(),
+          firstName, lastName, role,
+          birthday,   // keep as provided (DD-MM-YYYY)
+          classId,
         };
 
-        const rowExisting = existing.get(key);
-        if (rowExisting) {
-          await updateDoc(doc(db, 'appUsers', rowExisting.id), payload);
+        const existingRow = existing.get(username.toLowerCase());
+        if (existingRow) {
+          await updateDoc(doc(db, 'appUsers', existingRow.id), payload);
           updated++;
         } else {
           await addDoc(collection(db, 'appUsers'), { ...payload, createdAt: serverTimestamp() });
@@ -325,28 +374,58 @@ export default function UsersAdmin() {
           className={`${styles.collapseContent} ${createOpen ? '' : styles.closed}`}
         >
           <div className={styles.collapseInner}>
-            {/* Horizontal scroll on small screens (LTR scroller, RTL content) */}
             <div className={styles.hScroll} dir="ltr">
               <form onSubmit={createUser} style={{ display: 'grid', gap: 8 }}>
                 <div className={styles.wideGrid} dir="rtl">
-                  <input className={styles.input} placeholder={t('users:username','Username')!}
-                         value={form.username || ''} onChange={e => setForm(v => ({ ...v, username: e.target.value }))} />
-                  <input className={styles.input} placeholder={t('users:firstName','First name')!}
-                         value={form.firstName || ''} onChange={e => setForm(v => ({ ...v, firstName: e.target.value }))} />
-                  <input className={styles.input} placeholder={t('users:lastName','Last name')!}
-                         value={form.lastName || ''} onChange={e => setForm(v => ({ ...v, lastName: e.target.value }))} />
-                  <select className={styles.select}
-                          value={form.role || 'student'}
-                          onChange={e => setForm(v => ({ ...v, role: e.target.value as Role }))}>
+                  <input
+                    className={styles.input}
+                    placeholder={t('users:username','Username')!}
+                    value={form.username}
+                    onChange={e => setForm(v => ({ ...v, username: e.target.value }))}
+                  />
+                  <input
+                    className={styles.input}
+                    placeholder={t('users:firstName','First name')!}
+                    value={form.firstName}
+                    onChange={e => setForm(v => ({ ...v, firstName: e.target.value }))}
+                  />
+                  <input
+                    className={styles.input}
+                    placeholder={t('users:lastName','Last name')!}
+                    value={form.lastName}
+                    onChange={e => setForm(v => ({ ...v, lastName: e.target.value }))}
+                  />
+
+                  {/* Role */}
+                  <select
+                    className={styles.select}
+                    value={form.role}
+                    onChange={e => setForm(v => ({ ...v, role: e.target.value as Role }))}
+                  >
                     <option value="student">{t('users:role.student','Student')}</option>
                     <option value="teacher">{t('users:role.teacher','Teacher')}</option>
                     <option value="admin">{t('users:role.admin','Admin')}</option>
                     <option value="kiosk">{t('users:role.kiosk','Kiosk')}</option>
                   </select>
-                  <input className={styles.input} placeholder={t('users:birthday','Birthday (yyyy-mm-dd)')!}
-                         value={form.birthday || ''} onChange={e => setForm(v => ({ ...v, birthday: e.target.value }))} />
-                  <input className={styles.input} placeholder={t('users:classId','Class ID')!}
-                         value={form.classId || ''} onChange={e => setForm(v => ({ ...v, classId: e.target.value }))} />
+
+                  {/* Birthday: date picker -> saved as DD-MM-YYYY */}
+                  <input
+                    type="date"
+                    className={styles.input}
+                    placeholder={t('users:birthday','Birthday')!}
+                    value={form.birthdayRaw}
+                    onChange={e => setForm(v => ({ ...v, birthdayRaw: e.target.value }))}
+                  />
+
+                  {/* Class ID: א..יב */}
+                  <select
+                    className={styles.select}
+                    value={form.classId}
+                    onChange={e => setForm(v => ({ ...v, classId: e.target.value }))}
+                  >
+                    <option value="">{t('users:classId','Class ID')}</option>
+                    {CLASS_HE.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
                 </div>
 
                 <button className={styles.btnPrimary} disabled={!canCreate || creating}>
@@ -432,24 +511,55 @@ export default function UsersAdmin() {
             <h3 className={styles.panelTitle}>{t('users:editTitle','Edit User')}</h3>
 
             <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-              <input className={styles.input} placeholder={t('users:username','Username')!}
-                     value={edit.row.username || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, username: e.target.value } }) : prev)} />
-              <input className={styles.input} placeholder={t('users:firstName','First name')!}
-                     value={edit.row.firstName || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, firstName: e.target.value } }) : prev)} />
-              <input className={styles.input} placeholder={t('users:lastName','Last name')!}
-                     value={edit.row.lastName || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, lastName: e.target.value } }) : prev)} />
-              <select className={styles.select}
-                      value={edit.row.role}
-                      onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, role: e.target.value as Role } }) : prev)}>
+              <input
+                className={styles.input}
+                placeholder={t('users:username','Username')!}
+                value={edit.row.username || ''}
+                onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, username: e.target.value }, birthdayRaw: prev.birthdayRaw }) : prev)}
+              />
+              <input
+                className={styles.input}
+                placeholder={t('users:firstName','First name')!}
+                value={edit.row.firstName || ''}
+                onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, firstName: e.target.value }, birthdayRaw: prev.birthdayRaw }) : prev)}
+              />
+              <input
+                className={styles.input}
+                placeholder={t('users:lastName','Last name')!}
+                value={edit.row.lastName || ''}
+                onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, lastName: e.target.value }, birthdayRaw: prev.birthdayRaw }) : prev)}
+              />
+
+              {/* Role */}
+              <select
+                className={styles.select}
+                value={edit.row.role}
+                onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, role: e.target.value as Role }, birthdayRaw: prev.birthdayRaw }) : prev)}
+              >
                 <option value="student">{t('users:role.student','Student')}</option>
                 <option value="teacher">{t('users:role.teacher','Teacher')}</option>
                 <option value="admin">{t('users:role.admin','Admin')}</option>
                 <option value="kiosk">{t('users:role.kiosk','Kiosk')}</option>
               </select>
-              <input className={styles.input} placeholder={t('users:birthday','Birthday (yyyy-mm-dd)')!}
-                     value={edit.row.birthday || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, birthday: e.target.value } }) : prev)} />
-              <input className={styles.input} placeholder={t('users:classId','Class ID')!}
-                     value={edit.row.classId || ''} onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, classId: e.target.value } }) : prev)} />
+
+              {/* Birthday */}
+              <input
+                type="date"
+                className={styles.input}
+                placeholder={t('users:birthday','Birthday')!}
+                value={edit.birthdayRaw}
+                onChange={e => setEdit(prev => prev.open ? ({ open: true, row: prev.row, birthdayRaw: e.target.value }) : prev)}
+              />
+
+              {/* Class ID */}
+              <select
+                className={styles.select}
+                value={edit.row.classId || ''}
+                onChange={e => setEdit(prev => prev.open ? ({ open: true, row: { ...prev.row, classId: e.target.value }, birthdayRaw: prev.birthdayRaw }) : prev)}
+              >
+                <option value="">{t('users:classId','Class ID')}</option>
+                {CLASS_HE.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
             </div>
 
             <div className={styles.modalActions}>
