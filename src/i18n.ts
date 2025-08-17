@@ -1,4 +1,3 @@
-// src/i18n.ts
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
@@ -46,9 +45,13 @@ import news_he from './locales/he/news.json';
 import login_en from './locales/en/login.json';
 import login_he from './locales/he/login.json';
 
-// ---- parliament namespace (NEW) ----
+// ---- parliament namespace ----
 import parliament_en from './locales/en/parliament.json';
 import parliament_he from './locales/he/parliament.json';
+
+// ---- nav namespace (NEW) ----
+import nav_en from './locales/en/nav.json';
+import nav_he from './locales/he/nav.json';
 
 const ns = [
   'common',
@@ -64,7 +67,8 @@ const ns = [
   'display',
   'news',
   'login',
-  'parliament' // NEW
+  'parliament',
+  'nav' // NEW
 ] as const;
 
 function applyDirAndLang(lng?: string) {
@@ -96,7 +100,8 @@ void i18n
         display: display_en,
         news: news_en,
         login: login_en,
-        parliament: parliament_en // NEW
+        parliament: parliament_en,
+        nav: nav_en
       },
       he: {
         common: common_he,
@@ -112,7 +117,8 @@ void i18n
         display: display_he,
         news: news_he,
         login: login_he,
-        parliament: parliament_he // NEW
+        parliament: parliament_he,
+        nav: nav_he
       }
     },
     interpolation: { escapeValue: false },

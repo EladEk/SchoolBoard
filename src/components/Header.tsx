@@ -4,6 +4,7 @@ import styles from './Header.module.css';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/app';
 import { useEffectiveRole } from '../utils/requireRole';
+import { useTranslation } from 'react-i18next';
 
 type HeaderProps = {
   title?: string;
@@ -35,6 +36,7 @@ export default function Header({
   role: roleProp,
   navMode = 'full',
 }: HeaderProps) {
+  const { t } = useTranslation(['nav', 'parliament']);
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -84,28 +86,36 @@ export default function Header({
           <button
             onClick={() => navigate(dashPath)}
             className={styles.linkBtn}
-            title="Go to your dashboard"
+            title={t('nav:goToDashboard', 'Go to Dashboard')}
           >
-            Go to Dashboard
+            {t('nav:goToDashboard', 'Go to Dashboard')}
           </button>
         )}
         {showGoParliament && (
           <button
             onClick={() => navigate('/parliament')}
             className={styles.linkBtn}
-            title="Go to Parliament"
+            title={t('parliament:link', 'Parliament')}
           >
-            Parliament
+            {t('parliament:link', 'Parliament')}
           </button>
         )}
 
         {/* Desktop inline links (optional full nav) */}
         {navMode === 'full' && (
           <div className={styles.navLinks} aria-hidden>
-            <button onClick={() => navigate(dashPath)} className={styles.linkBtn}>Dashboard</button>
-            <button onClick={() => navigate('/classes')} className={styles.linkBtn}>Classes</button>
-            <button onClick={() => navigate('/lessons')} className={styles.linkBtn}>Lessons</button>
-            <button onClick={() => navigate('/parliament')} className={styles.linkBtn}>Parliament</button>
+            <button onClick={() => navigate(dashPath)} className={styles.linkBtn}>
+              {t('nav:dashboard', 'Dashboard')}
+            </button>
+            <button onClick={() => navigate('/classes')} className={styles.linkBtn}>
+              {t('nav:classes', 'Classes')}
+            </button>
+            <button onClick={() => navigate('/lessons')} className={styles.linkBtn}>
+              {t('nav:lessons', 'Lessons')}
+            </button>
+            <button onClick={() => navigate('/parliament')} className={styles.linkBtn}>
+              {t('parliament:link', 'Parliament')}
+            </button>
           </div>
         )}
 
@@ -113,7 +123,7 @@ export default function Header({
         {navMode === 'full' && (
           <button
             className={styles.menuToggle}
-            aria-label="Open navigation"
+            aria-label={t('nav:openNavigation', 'Open navigation')}
             aria-expanded={open}
             aria-controls="header-menu"
             onClick={() => setOpen(v => !v)}
@@ -124,7 +134,9 @@ export default function Header({
 
         {/* Logout */}
         {navMode !== 'none' && (
-          <button onClick={logout} className={styles.logoutBtn}>Logout</button>
+          <button onClick={logout} className={styles.logoutBtn}>
+            {t('nav:logout', 'Logout')}
+          </button>
         )}
 
         {/* Slide-down mobile panel */}
@@ -136,16 +148,16 @@ export default function Header({
             role="menu"
           >
             <button className={styles.menuLink} onClick={() => { setOpen(false); navigate(dashPath); }}>
-              Dashboard
+              {t('nav:dashboard', 'Dashboard')}
             </button>
             <button className={styles.menuLink} onClick={() => { setOpen(false); navigate('/classes'); }}>
-              Classes
+              {t('nav:classes', 'Classes')}
             </button>
             <button className={styles.menuLink} onClick={() => { setOpen(false); navigate('/lessons'); }}>
-              Lessons
+              {t('nav:lessons', 'Lessons')}
             </button>
             <button className={styles.menuLink} onClick={() => { setOpen(false); navigate('/parliament'); }}>
-              Parliament
+              {t('parliament:link', 'Parliament')}
             </button>
           </div>
         )}
