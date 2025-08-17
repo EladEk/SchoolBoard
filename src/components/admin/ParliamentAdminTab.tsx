@@ -29,7 +29,7 @@ function tsMillis(x: any): number {
 
 export default function ParliamentAdminTab() {
   const { t } = useTranslation(['parliament']);
-  const [subTab, setSubTab] = useState<SubTab>('queue');
+  const [subTab, setSubTab] = useState<SubTab>('dates');
 
   const [queue, setQueue] = useState<ParliamentSubject[]>([]);
   const [approved, setApproved] = useState<ParliamentSubject[]>([]);
@@ -140,10 +140,10 @@ export default function ParliamentAdminTab() {
 
   const subTabs = useMemo(
     () => ([
+      { key: 'dates',    label: t('parliament:createDate', 'Create date') },
       { key: 'queue',    label: t('parliament:queue', 'Moderation queue') },
       { key: 'approved', label: t('parliament:approved', 'Approved') },
       { key: 'rejected', label: t('parliament:rejected', 'Rejected') },
-      { key: 'dates',    label: t('parliament:createDate', 'Create date') },
     ]) as Array<{ key: SubTab; label: string }>,
     [t]
   );

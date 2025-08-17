@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
 import { useTranslation } from 'react-i18next';
+import styles from './NewsAdmin.module.css';
 
 type NewsItem = {
   id: string;
@@ -106,40 +107,29 @@ export default function NewsAdmin() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <h2 style={{ margin: 0 }}>{t('news:manage', 'Manage announcements')}</h2>
+    <div className={styles.wrapper}>
+      <h2 className={styles.title}>{t('news:manage', 'Manage announcements')}</h2>
 
-      {err && (
-        <div style={{ padding: 10, border: '1px solid #f5c2c7', background: '#f8d7da', color: '#842029', borderRadius: 8 }}>
-          {err}
-        </div>
-      )}
+      {err && <div className={styles.alert}>{err}</div>}
 
       {/* Add / Edit form */}
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 8 }}>
-        <label style={{ display: 'grid', gap: 6 }}>
-          <span>{t('news:textLabel', 'Text')}</span>
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <label className={styles.field}>
+          <span className={styles.label}>{t('news:textLabel', 'Text')}</span>
           <input
             type="text"
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder={t('news:textPlaceholder', 'Write an announcement')!}
-            style={{ padding: '10px 12px', border: '1px solid #cfd6e4', borderRadius: 10 }}
+            className={styles.control}
           />
         </label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            type="submit"
-            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #90caf9', background: '#e3f2fd' }}
-          >
+        <div className={styles.actions}>
+          <button type="submit" className={styles.btnPrimary}>
             {isEditing ? t('common:save', 'Save') : t('common:add', 'Add')}
           </button>
           {isEditing && (
-            <button
-              type="button"
-              onClick={cancelEdit}
-              style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cfd6e4', background: '#fff' }}
-            >
+            <button type="button" onClick={cancelEdit} className={styles.btn}>
               {t('common:cancel', 'Cancel')}
             </button>
           )}
@@ -147,34 +137,34 @@ export default function NewsAdmin() {
       </form>
 
       {/* Current news list */}
-      <div style={{ border: '1px solid #e3e7ef', borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead style={{ background: '#f3f6ff' }}>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead className={styles.thead}>
             <tr>
-              <th style={{ textAlign: 'right', padding: 10, borderBottom: '1px solid #e3e7ef' }}>{t('news:table.text', 'Text')}</th>
-              <th style={{ width: 120, borderBottom: '1px solid #e3e7ef' }}>{t('common:actions', 'Actions')}</th>
+              <th className={styles.th}>{t('news:table.text', 'Text')}</th>
+              <th className={`${styles.th} ${styles.thRight}`}>{t('common:actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
             {items.map(n => (
               <tr key={n.id}>
-                <td style={{ padding: 10, borderBottom: '1px solid #eef2fa' }}>
-                  <div title={n.text} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <td className={styles.td}>
+                  <div title={n.text} className={styles.cellText}>
                     {n.text}
                   </div>
                 </td>
-                <td style={{ padding: 10, borderBottom: '1px solid #eef2fa' }}>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
+                  <div className={styles.rowActions}>
                     <button
                       onClick={() => startEdit(n)}
-                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cfd6e4', background: '#fff', cursor: 'pointer' }}
+                      className={styles.btn}
                       title={t('common:edit', 'Edit')!}
                     >
                       ✎
                     </button>
                     <button
                       onClick={() => handleDelete(n.id)}
-                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ffcdd2', background: '#ffebee', cursor: 'pointer' }}
+                      className={styles.btnDanger}
                       title={t('common:delete', 'Delete')!}
                     >
                       🗑
@@ -185,7 +175,7 @@ export default function NewsAdmin() {
             ))}
             {!items.length && (
               <tr>
-                <td colSpan={2} style={{ padding: 16, textAlign: 'center', color: '#667085' }}>
+                <td colSpan={2} className={styles.emptyRow}>
                   {t('news:noItems', 'No announcements yet')}
                 </td>
               </tr>
