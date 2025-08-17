@@ -47,13 +47,11 @@ const CLASS_HE: string[] = ['א','ב','ג','ד','ה','ו','ז','ח','ט','י','�
 
 /** Date format helpers */
 function toDDMMYYYY(isoYYYYMMDD: string): string {
-  // from "2025-08-17" to "17-08-2025"
   if (!isoYYYYMMDD || !/^\d{4}-\d{2}-\d{2}$/.test(isoYYYYMMDD)) return '';
   const [y,m,d] = isoYYYYMMDD.split('-');
   return `${d}-${m}-${y}`;
 }
 function fromDDMMYYYYToISO(ddmmyyyy: string): string {
-  // from "17-08-2025" to "2025-08-17" (best effort)
   if (!ddmmyyyy || !/^\d{2}-\d{2}-\d{4}$/.test(ddmmyyyy)) return '';
   const [d,m,y] = ddmmyyyy.split('-');
   return `${y}-${m}-${d}`;
@@ -374,9 +372,9 @@ export default function UsersAdmin() {
           className={`${styles.collapseContent} ${createOpen ? '' : styles.closed}`}
         >
           <div className={styles.collapseInner}>
-            <div className={styles.hScroll} dir="ltr">
+            <div className={styles.hScroll}>
               <form onSubmit={createUser} style={{ display: 'grid', gap: 8 }}>
-                <div className={styles.wideGrid} dir="rtl">
+                <div className={styles.wideGrid}>
                   <input
                     className={styles.input}
                     placeholder={t('users:username','Username')!}
