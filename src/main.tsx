@@ -33,49 +33,66 @@ function NotFoundPage() {
   );
 }
 
-const router = createBrowserRouter([
-  { path: '/', element: <LoginPage /> },
-  { path: '/signup', element: <SignupPage /> },
+const router = createBrowserRouter(
+  [
+    { path: '/', element: <LoginPage /> },
+    { path: '/signup', element: <SignupPage /> },
 
-  {
-    path: '/display',
-    element: (
-      <RequireRole allowed={['kiosk','admin']}>
-        <DisplayPage />
-      </RequireRole>
-    ),
-  },
-  {
-    path: '/admin',
-    element: (
-      <RequireRole allowed={['admin']}>
-        <AdminDashboard />
-      </RequireRole>
-    ),
-  },
-  {
-    path: '/teacher',
-    element: (
-      <RequireRole allowed={['teacher','admin']}>
-        <TeacherDashboard />
-      </RequireRole>
-    ),
-  },
-  {
-    path: '/student',
-    element: (
-      <RequireRole allowed={['student','admin']}>
-        <StudentDashboard />
-      </RequireRole>
-    ),
-  },
+    {
+      path: '/display',
+      element: (
+        <RequireRole allowed={['kiosk','admin']}>
+          <DisplayPage />
+        </RequireRole>
+      ),
+    },
+    {
+      path: '/admin',
+      element: (
+        <RequireRole allowed={['admin']}>
+          <AdminDashboard />
+        </RequireRole>
+      ),
+    },
+    {
+      path: '/teacher',
+      element: (
+        <RequireRole allowed={['teacher','admin']}>
+          <TeacherDashboard />
+        </RequireRole>
+      ),
+    },
+    {
+      path: '/student',
+      element: (
+        <RequireRole allowed={['student','admin']}>
+          <StudentDashboard />
+        </RequireRole>
+      ),
+    },
 
-  { path: '/unauthorized', element: <UnauthorizedPage /> },
-  { path: '*', element: <NotFoundPage /> },
-]);
+    { path: '/unauthorized', element: <UnauthorizedPage /> },
+    { path: '*', element: <NotFoundPage /> },
+  ],
+  {
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true,
+      v7_fetcherPersist: true,
+      v7_normalizeFormMethod: true,
+    },
+  }
+);
+
+const providerFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+  v7_fetcherPersist: true,
+  v7_normalizeFormMethod: true,
+};
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <RouterProvider router={router} future={providerFuture} />
   </React.StrictMode>
 );
