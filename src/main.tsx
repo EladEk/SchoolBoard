@@ -25,7 +25,6 @@ function UnauthorizedPage() {
     </div>
   );
 }
-
 function NotFoundPage() {
   return (
     <div style={{ minHeight:'100vh', display:'grid', placeItems:'center', background:'#0b0b0b', color:'#fff' }}>
@@ -34,57 +33,46 @@ function NotFoundPage() {
   );
 }
 
-const router = createBrowserRouter(
-  [
-    { path: '/', element: <LoginPage /> },
-    { path: '/signup', element: <SignupPage /> },
+const router = createBrowserRouter([
+  { path: '/', element: <LoginPage /> },
+  { path: '/signup', element: <SignupPage /> },
 
-    {
-      path: '/display',
-      element: (
-        <RequireRole allowed={['kiosk','admin']}>
-          <DisplayPage />
-        </RequireRole>
-      ),
-    },
-    {
-      path: '/admin',
-      element: (
-        <RequireRole allowed={['admin']}>
-          <AdminDashboard />
-        </RequireRole>
-      ),
-    },
-    {
-      path: '/teacher',
-      element: (
-        <RequireRole allowed={['teacher','admin']}>
-          <TeacherDashboard />
-        </RequireRole>
-      ),
-    },
-    {
-      path: '/student',
-      element: (
-        <RequireRole allowed={['student','admin']}>
-          <StudentDashboard />
-        </RequireRole>
-      ),
-    },
-
-    { path: '/unauthorized', element: <UnauthorizedPage /> },
-    { path: '*', element: <NotFoundPage /> },
-  ],
-  // ✅ v7 future flags — TS now understands them thanks to our .d.ts shim
   {
-    future: {
-      v7_startTransition: true,
-      v7_relativeSplatPath: true,
-      v7_fetcherPersist: true,
-      v7_normalizeFormMethod: true,
-    },
-  }
-);
+    path: '/display',
+    element: (
+      <RequireRole allowed={['kiosk','admin']}>
+        <DisplayPage />
+      </RequireRole>
+    ),
+  },
+  {
+    path: '/admin',
+    element: (
+      <RequireRole allowed={['admin']}>
+        <AdminDashboard />
+      </RequireRole>
+    ),
+  },
+  {
+    path: '/teacher',
+    element: (
+      <RequireRole allowed={['teacher','admin']}>
+        <TeacherDashboard />
+      </RequireRole>
+    ),
+  },
+  {
+    path: '/student',
+    element: (
+      <RequireRole allowed={['student','admin']}>
+        <StudentDashboard />
+      </RequireRole>
+    ),
+  },
+
+  { path: '/unauthorized', element: <UnauthorizedPage /> },
+  { path: '*', element: <NotFoundPage /> },
+]);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
