@@ -35,7 +35,7 @@
   "cancel": "ביטול",
   "deleteConfirmNote": "למחוק את ההערה?",
   "delete": "מחיקה",
-
+  "cannotMoveToClosed": "לא ניתן להעביר נושא לתאריך סגור. בחרו תאריך פתוח.",
   "adminTitle": "ניהול פרלמנט",
   "queue": "ממתינים לאישור",
   "approved": "מאושרים",
@@ -57,5 +57,9 @@
   "markRejected": "סמן כנדחה",
   "rejectReason": "סיבת הדחייה:",
   "rejectedReason": "סיבה",
-  "reason": "סיבה"
+  "reason": "סיבה",
+  "reply": "השב",
+  "addReplyAs": "השב בשם",
+  "addReply": "הוסף תגובה",
+  "replyPlaceholder": "כתוב תגובה"
 }

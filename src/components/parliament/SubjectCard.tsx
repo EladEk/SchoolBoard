@@ -6,10 +6,15 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
 import { useTranslation } from 'react-i18next';
+import NotesThread from './NotesThread';
 
 type Props = {
   subject: ParliamentSubject;
   onOpen?: (s: ParliamentSubject) => void;
+  /** When true, render a read-only notes thread inline. */
+  inlineNotes?: boolean;
+  /** Pass current user if you want author names computed/fallbacks (not needed for read-only). */
+  currentUser?: any;
 };
 
 function emailLocalPart(email?: string): string | undefined {
@@ -36,7 +41,7 @@ function fullNameFromProfile(p?: any): string | undefined {
   return undefined;
 }
 
-export default function SubjectCard({ subject, onOpen }: Props) {
+export default function SubjectCard({ subject, onOpen, inlineNotes = false, currentUser }: Props) {
   const { t } = useTranslation(['parliament']);
 
   const initialAuthor =
@@ -111,6 +116,7 @@ export default function SubjectCard({ subject, onOpen }: Props) {
         </div>
       )}
 
+      {/* Always keep the open button for add/edit/delete */}
       <div className={styles.actions} style={{ marginTop: 10 }}>
         <button
           className="btn btnPrimary"
@@ -120,6 +126,13 @@ export default function SubjectCard({ subject, onOpen }: Props) {
           💬 {discussLabel}
         </button>
       </div>
+
+      {/* Inline read-only notes (just view) */}
+      {inlineNotes && (
+        <div style={{ marginTop: 12 }}>
+          <NotesThread subject={subject} currentUser={currentUser} readOnly />
+        </div>
+      )}
     </div>
   );
 }

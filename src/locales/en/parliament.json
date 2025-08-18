@@ -35,7 +35,7 @@
   "cancel": "Cancel",
   "deleteConfirmNote": "Delete this note?",
   "delete": "Delete",
-
+  "cannotMoveToClosed": "Cannot move subject to a closed date. Choose an open date.",
   "adminTitle": "Parliament Admin",
   "queue": "Moderation queue",
   "approved": "Approved",

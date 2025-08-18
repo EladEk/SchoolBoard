@@ -13,7 +13,7 @@ import SubjectEditModal from '../components/parliament/SubjectEditModal';
 
 function tsMillis(x: any): number {
   if (!x) return 0;
-  if (typeof x.toMillis === 'function') return x.toMillis();
+  if (typeof x?.toMillis === 'function') return x.toMillis();
   const d = x instanceof Date ? x : new Date(x);
   const t = d.getTime();
   return Number.isFinite(t) ? t : 0;
@@ -25,8 +25,10 @@ export default function Parliament() {
   const [subjects, setSubjects] = useState<ParliamentSubject[]>([]);
   const [myPending, setMyPending] = useState<ParliamentSubject[]>([]);
   const [myRejected, setMyRejected] = useState<ParliamentSubject[]>([]);
-  const [current, setCurrent] = useState<ParliamentSubject | null>(null);
   const [editing, setEditing] = useState<ParliamentSubject | null>(null);
+
+  // NEW: subject opened in popup for full notes (add/edit/delete)
+  const [current, setCurrent] = useState<ParliamentSubject | null>(null);
 
   const session = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('session') || '{}') || {}; } catch { return {}; }
@@ -39,7 +41,7 @@ export default function Parliament() {
     (user as any)?.user?.uid ||
     '';
 
-  // Dates (index-free; sort client-side)
+  // Dates
   useEffect(() => {
     const unsub = onSnapshot(
       query(collection(db, 'parliamentDates')),
@@ -52,7 +54,7 @@ export default function Parliament() {
     return () => unsub();
   }, []);
 
-  // APPROVED subjects (public) — index-free where + client sort
+  // Approved subjects (public)
   useEffect(() => {
     const unsub = onSnapshot(
       query(collection(db, 'parliamentSubjects'), where('status','==','approved')),
@@ -65,7 +67,7 @@ export default function Parliament() {
     return () => unsub();
   }, []);
 
-  // MY submissions (pending + rejected) — single listener on createdByUid
+  // My submissions (pending + rejected)
   useEffect(() => {
     if (!userUid) return;
     const unsub = onSnapshot(
@@ -75,16 +77,13 @@ export default function Parliament() {
         const pendingOnly = mine.filter(s => s.status === 'pending');
         const rejectedOnly = mine.filter(s => s.status === 'rejected');
 
-        pendingOnly.sort((a, b) => {
+        const sortFn = (a: any, b: any) => {
           const ta = ((a.createdAt?.toMillis?.() ?? new Date(a.createdAt || 0).getTime()) || 0);
           const tb = ((b.createdAt?.toMillis?.() ?? new Date(b.createdAt || 0).getTime()) || 0);
-          return tb - ta; // desc
-        });
-        rejectedOnly.sort((a, b) => {
-          const ta = ((a.createdAt?.toMillis?.() ?? new Date(a.createdAt || 0).getTime()) || 0);
-          const tb = ((b.createdAt?.toMillis?.() ?? new Date(b.createdAt || 0).getTime()) || 0);
-          return tb - ta; // desc
-        });
+          return tb - ta;
+        };
+        pendingOnly.sort(sortFn);
+        rejectedOnly.sort(sortFn);
 
         setMyPending(pendingOnly);
         setMyRejected(rejectedOnly);
@@ -124,7 +123,7 @@ export default function Parliament() {
         </h2>
       </div>
 
-      {/* --- Approved subjects (TOP) --- */}
+      {/* Approved subjects (TOP) with inline read-only notes */}
       <section className={page.section}>
         <h3 className={page.sectionTitle}>{t('parliament:approvedSubjects', 'Approved subjects')}</h3>
         {byDate.length === 0 ? (
@@ -137,7 +136,13 @@ export default function Parliament() {
               </div>
               <div className={page.grid}>
                 {group.items.map(s => (
-                  <SubjectCard key={s.id} subject={s} onOpen={setCurrent} />
+                  <SubjectCard
+                    key={s.id}
+                    subject={s}
+                    inlineNotes
+                    currentUser={user}
+                    onOpen={setCurrent}  // <-- click "💬 Discuss / Notes" opens popup
+                  />
                 ))}
               </div>
             </div>
@@ -178,7 +183,7 @@ export default function Parliament() {
         </section>
       )}
 
-      {/* My rejected submissions (shows reason) */}
+      {/* My rejected submissions */}
       {userUid && (
         <section className={page.section}>
           <h3 className={page.sectionTitle}>{t('parliament:myRejected', 'My rejected subjects')}</h3>
@@ -206,22 +211,26 @@ export default function Parliament() {
         </section>
       )}
 
-      {/* Subject detail modal (approved items) */}
+      {/* Popup modal to ADD / EDIT / DELETE notes on an approved subject */}
       {current && (
         <div className={page.modalBackdrop} onClick={() => setCurrent(null)}>
-          <div className={page.modalPanel} onClick={e=>e.stopPropagation()}>
+          <div className={page.modalPanel} onClick={(e)=>e.stopPropagation()}>
             <div className={page.section}>
               <div className={page.modalHeader}>
                 <h3 className={page.mt0}>{current.title}</h3>
-                <button className="btn btnGhost" onClick={()=>setCurrent(null)}>✖</button>
+                <button className="btn btnGhost" onClick={() => setCurrent(null)}>✖</button>
               </div>
               <div className={page.mt4}>
                 <span className={page.badge}>{current.dateTitle}</span>
               </div>
-              <div className={`${page.mt10} ${page.pre}`}>{current.description}</div>
+              {current.description && (
+                <div className={`${page.mt10} ${page.pre}`}>{current.description}</div>
+              )}
             </div>
+
             <div className={page.mt10}>
               <section className={page.section}>
+                {/* Full-power notes thread (not readOnly) */}
                 <NotesThread subject={current} currentUser={user} />
               </section>
             </div>
@@ -229,7 +238,7 @@ export default function Parliament() {
         </div>
       )}
 
-      {/* Edit modal (my pending items) */}
+      {/* Edit modal for my pending items */}
       {editing && (
         <SubjectEditModal
           subject={editing}

@@ -1,18 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
+  getDoc,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
-  deleteDoc,
-  getDoc,
-  getDocs,
   where,
-  limit,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../firebase/app';
 import styles from './Parliament.module.css';
@@ -22,7 +23,9 @@ import { useTranslation } from 'react-i18next';
 
 type Props = {
   subject: ParliamentSubject;
-  currentUser?: any; // guests can still comment
+  currentUser?: any; // guests can still comment when not readOnly
+  /** When true, hide composer and action buttons (view-only). */
+  readOnly?: boolean;
 };
 
 type Note = {
@@ -33,6 +36,7 @@ type Note = {
   createdByName?: string;
   createdByFullName?: string;
   editedAt?: any;
+  parentId?: string | null; // replies reference their root note id
 };
 
 type Profile = {
@@ -54,7 +58,6 @@ function toMillis(x: any): number {
   const t = d.getTime();
   return Number.isFinite(t) ? t : 0;
 }
-
 function fmtDateTime(x: any): string {
   if (!x) return '';
   const d =
@@ -70,20 +73,17 @@ function fmtDateTime(x: any): string {
     hour12: false,
   });
 }
-
 function emailLocalPart(email?: string): string | undefined {
   if (!email || typeof email !== 'string') return undefined;
   const local = email.split('@')[0];
   return local || undefined;
 }
-
 function pickUsername(u: any): string | undefined {
   if (!u) return undefined;
   if (u.username && String(u.username).trim()) return String(u.username).trim();
   if (u.user?.username && String(u.user.username).trim()) return String(u.user.username).trim();
   return emailLocalPart(u.email || u.user?.email);
 }
-
 function fullNameFromProfile(p?: Profile): string | undefined {
   if (!p) return undefined;
   const fn = p.firstName || (p as any).given_name;
@@ -96,7 +96,6 @@ function fullNameFromProfile(p?: Profile): string | undefined {
   if (single && String(single).trim()) return String(single).trim();
   return undefined;
 }
-
 function fullNameFromCurrentUser(u: any): string {
   return (
     fullNameFromProfile(u) ||
@@ -104,7 +103,6 @@ function fullNameFromCurrentUser(u: any): string {
     'User'
   );
 }
-
 function authorForNote(n: Note, profileMap: Record<string, Profile>): string {
   const uid = n.createdByUid || '';
   const prof = uid ? profileMap[uid] : undefined;
@@ -144,20 +142,25 @@ async function fetchProfileByUid(uid: string): Promise<Profile | null> {
   return null;
 }
 
-export default function NotesThread({ subject, currentUser }: Props) {
+export default function NotesThread({ subject, currentUser, readOnly = false }: Props) {
   const { t } = useTranslation(['parliament']);
   const [notes, setNotes] = useState<Note[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
-  const [text, setText] = useState('');
+  const [text, setText] = useState(''); // root composer
   const [sending, setSending] = useState(false);
 
+  // Edit state (works for roots or replies)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+
+  // Reply state
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { role } = useEffectiveRole();
-  const isAdmin = role === 'admin';
+  const isAdmin = !readOnly && role === 'admin'; // in readOnly, no admin actions
 
   const uid: string =
     (currentUser as any)?.uid ||
@@ -167,6 +170,7 @@ export default function NotesThread({ subject, currentUser }: Props) {
 
   const currentDisplayName = fullNameFromCurrentUser(currentUser);
 
+  // Live notes for subject (all docs, roots + replies)
   useEffect(() => {
     const col = collection(db, 'parliamentSubjects', subject.id, 'notes');
     const unsub = onSnapshot(query(col, orderBy('createdAt', 'asc')), (snap) => {
@@ -177,6 +181,7 @@ export default function NotesThread({ subject, currentUser }: Props) {
     return () => unsub();
   }, [subject.id]);
 
+  // Load profiles for authors we don't have yet
   useEffect(() => {
     const uids = Array.from(
       new Set(
@@ -207,8 +212,30 @@ export default function NotesThread({ subject, currentUser }: Props) {
     return () => { cancelled = true; };
   }, [notes, profiles]);
 
-  async function send(e: React.FormEvent) {
+  // Partition notes -> roots + replies map
+  const { roots, repliesByParent } = useMemo(() => {
+    const roots: Note[] = [];
+    const repliesByParent = new Map<string, Note[]>();
+    for (const n of notes) {
+      const pid = n.parentId || '';
+      if (!pid) {
+        roots.push(n);
+      } else {
+        if (!repliesByParent.has(pid)) repliesByParent.set(pid, []);
+        repliesByParent.get(pid)!.push(n);
+      }
+    }
+    // keep replies ordered by createdAt too
+    for (const [, arr] of repliesByParent) {
+      arr.sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt));
+    }
+    return { roots, repliesByParent };
+  }, [notes]);
+
+  // --- Root composer (hidden in readOnly) ---
+  async function sendRoot(e: React.FormEvent) {
     e.preventDefault();
+    if (readOnly) return;
     const clean = text.trim();
     if (!clean) return;
     setSending(true);
@@ -220,6 +247,7 @@ export default function NotesThread({ subject, currentUser }: Props) {
         createdByUid: uid,
         createdByFullName: currentDisplayName,
         createdByName: currentDisplayName,
+        parentId: null,
       });
       setText('');
       setTimeout(() => inputRef.current?.focus(), 0);
@@ -228,20 +256,49 @@ export default function NotesThread({ subject, currentUser }: Props) {
     }
   }
 
+  // --- Replies ---
+  function startReply(parent: Note) {
+    if (readOnly) return;
+    setReplyingToId(parent.id);
+    setReplyText('');
+  }
+  function cancelReply() {
+    setReplyingToId(null);
+    setReplyText('');
+  }
+  async function sendReply(e: React.FormEvent, parent: Note) {
+    e.preventDefault();
+    if (readOnly) return;
+    const clean = replyText.trim();
+    if (!clean) return;
+    const col = collection(db, 'parliamentSubjects', subject.id, 'notes');
+    await addDoc(col, {
+      text: clean,
+      parentId: parent.id,
+      createdAt: serverTimestamp(),
+      createdByUid: uid,
+      createdByFullName: currentDisplayName,
+      createdByName: currentDisplayName,
+    });
+    setReplyingToId(null);
+    setReplyText('');
+  }
+
+  // --- Edit / Delete ---
   function startEdit(n: Note) {
+    if (readOnly) return;
     const isOwner = uid && n.createdByUid === uid;
     if (!(isAdmin || isOwner)) return;
     setEditingId(n.id);
     setEditText(n.text);
   }
-
   function cancelEdit() {
     setEditingId(null);
     setEditText('');
   }
-
   async function saveEdit(e: React.FormEvent, n: Note) {
     e.preventDefault();
+    if (readOnly) return;
     const isOwner = uid && n.createdByUid === uid;
     if (!(isAdmin || isOwner)) return;
     const clean = editText.trim();
@@ -253,11 +310,126 @@ export default function NotesThread({ subject, currentUser }: Props) {
     setEditingId(null);
     setEditText('');
   }
-
   async function removeNote(n: Note) {
-    if (!isAdmin) return;
+    if (readOnly || !isAdmin) return;
     if (!confirm(t('parliament:deleteConfirmNote', 'Delete this note?'))) return;
-    await deleteDoc(doc(db, 'parliamentSubjects', subject.id, 'notes', n.id));
+
+    const col = collection(db, 'parliamentSubjects', subject.id, 'notes');
+
+    // If deleting a root note, also delete its replies in one batch
+    const batch = writeBatch(db);
+    if (!n.parentId) {
+      const children = await getDocs(query(col, where('parentId', '==', n.id)));
+      children.forEach((d) => {
+        batch.delete(doc(db, 'parliamentSubjects', subject.id, 'notes', d.id));
+      });
+    }
+    batch.delete(doc(db, 'parliamentSubjects', subject.id, 'notes', n.id));
+    await batch.commit();
+  }
+
+  function renderNoteRow(n: Note, isReply = false) {
+    const isOwner = Boolean(uid) && n.createdByUid === uid;
+    const isEditing = !readOnly && (editingId === n.id);
+
+    const author = authorForNote(n, profiles);
+    const createdStr = fmtDateTime(n.createdAt);
+    const editedStr = n.editedAt ? fmtDateTime(n.editedAt) : '';
+
+    return (
+      <div key={n.id} className={isReply ? styles.replyItem : styles.noteItem}>
+        <div className={styles.row} style={{ justifyContent: 'space-between' }}>
+          <div className={styles.meta}>
+            <strong>{author}</strong>
+            {createdStr && <span> · {createdStr}</span>}
+            {editedStr && <span> · {t('parliament:edited', 'edited')} {editedStr}</span>}
+          </div>
+
+          {/* Actions hidden in readOnly */}
+          {!readOnly && (
+            <div className={styles.actions}>
+              {!isReply && !isEditing && (
+                <button
+                  type="button"
+                  className="btn btnGhost"
+                  onClick={() => startReply(n)}
+                  title={t('parliament:reply', 'Reply')}
+                >
+                  {t('parliament:reply', 'Reply')}
+                </button>
+              )}
+              {(isOwner || isAdmin) && !isEditing && (
+                <button
+                  type="button"
+                  className="btn btnGhost"
+                  onClick={() => startEdit(n)}
+                  title={t('parliament:edit', 'Edit')}
+                >
+                  {t('parliament:edit', 'Edit')}
+                </button>
+              )}
+              {isAdmin && !isEditing && (
+                <button
+                  type="button"
+                  className="btn btnWarn"
+                  onClick={() => removeNote(n)}
+                  title={t('parliament:delete', 'Delete')}
+                >
+                  {t('parliament:delete', 'Delete')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* View / Edit */}
+        {(!isEditing || readOnly) && (
+          <div className={styles.pre} style={{ marginTop: 6 }}>
+            {n.text}
+          </div>
+        )}
+        {!readOnly && isEditing && (
+          <form onSubmit={(e) => saveEdit(e, n)} className={styles.mt8}>
+            <textarea
+              rows={3}
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+            <div className={styles.actions} style={{ marginTop: 8 }}>
+              <button className="btn btnPrimary" type="submit">
+                {t('parliament:save', 'Save')}
+              </button>
+              <button type="button" className="btn btnGhost" onClick={cancelEdit}>
+                {t('parliament:cancel', 'Cancel')}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Reply composer (only under root note, only when replyingToId matches) */}
+        {!readOnly && !n.parentId && replyingToId === n.id && (
+          <form onSubmit={(e) => sendReply(e, n)} className={styles.replyForm}>
+            <label className={styles.meta} style={{ display: 'block', marginBottom: 6 }}>
+              {t('parliament:addReplyAs', 'Reply as')} <strong>{currentDisplayName}</strong>
+            </label>
+            <textarea
+              rows={3}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder={t('parliament:replyPlaceholder', 'Write a reply')}
+            />
+            <div className={styles.actions} style={{ marginTop: 8 }}>
+              <button className="btn btnPrimary" type="submit">
+                {t('parliament:addReply', 'Add reply')}
+              </button>
+              <button type="button" className="btn btnGhost" onClick={cancelReply}>
+                {t('parliament:cancel', 'Cancel')}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -271,102 +443,49 @@ export default function NotesThread({ subject, currentUser }: Props) {
         </span>
       </div>
 
-      {/* Composer */}
-      <form onSubmit={send} className={styles.mt10}>
-        <label className={styles.meta} style={{ display: 'block', marginBottom: 6 }}>
-          {t('parliament:addNoteAs', 'Add a note as')} <strong>{currentDisplayName}</strong>
-        </label>
-        <textarea
-          ref={inputRef}
-          rows={3}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('parliament:openAndAddNotes', 'Open and add notes')}
-        />
-        <div className={styles.actions} style={{ marginTop: 8 }}>
-          <button className="btn btnPrimary" type="submit" disabled={sending}>
-            {sending ? t('parliament:sending', 'Sending…') : t('parliament:addNote', 'Add note')}
-          </button>
-        </div>
-      </form>
-
-      {/* Notes list */}
-      <div className={styles.mt10}>
-        {notes.length === 0 ? (
+      {/* Notes + replies (scrollable when long) */}
+      <div className={`${styles.mt10} ${styles.notesScroll}`}>
+        {roots.length === 0 ? (
           <div className={styles.empty}>{t('parliament:noNotes', 'No notes yet. Be the first to comment.')}</div>
         ) : (
-          notes.map((n) => {
-            const isOwner = Boolean(uid) && n.createdByUid === uid;
-            const isEditing = editingId === n.id;
-
-            const author = authorForNote(n, profiles);
-            const createdStr = fmtDateTime(n.createdAt);
-            const editedStr = n.editedAt ? fmtDateTime(n.editedAt) : '';
-
+          roots.map((root) => {
+            const replies = repliesByParent.get(root.id) || [];
             return (
-              <div key={n.id} className={styles.noteItem}>
-                <div className={styles.row} style={{ justifyContent: 'space-between' }}>
-                  <div className={styles.meta}>
-                    <strong>{author}</strong>
-                    {createdStr && <span> · {createdStr}</span>}
-                    {editedStr && <span> · {t('parliament:edited', 'edited')} {editedStr}</span>}
-                  </div>
+              <div key={root.id}>
+                {renderNoteRow(root, false)}
 
-                  {/* Actions: owner can edit; admin can edit & delete */}
-                  <div className={styles.actions}>
-                    {(isOwner || isAdmin) && !isEditing && (
-                      <button
-                        type="button"
-                        className="btn btnGhost"
-                        onClick={() => startEdit(n)}
-                        title={t('parliament:edit', 'Edit')}
-                      >
-                        {t('parliament:edit', 'Edit')}
-                      </button>
-                    )}
-                    {isAdmin && !isEditing && (
-                      <button
-                        type="button"
-                        className="btn btnWarn"
-                        onClick={() => removeNote(n)}
-                        title={t('parliament:delete', 'Delete')}
-                      >
-                        {t('parliament:delete', 'Delete')}
-                      </button>
-                    )}
+                {/* Replies */}
+                {replies.length > 0 && (
+                  <div className={styles.replies}>
+                    {replies.map((r) => renderNoteRow(r, true))}
                   </div>
-                </div>
-
-                {/* View mode */}
-                {!isEditing && (
-                  <div className={styles.pre} style={{ marginTop: 6 }}>
-                    {n.text}
-                  </div>
-                )}
-
-                {/* Edit mode */}
-                {isEditing && (
-                  <form onSubmit={(e) => saveEdit(e, n)} className={styles.mt8}>
-                    <textarea
-                      rows={3}
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                    />
-                    <div className={styles.actions} style={{ marginTop: 8 }}>
-                      <button className="btn btnPrimary" type="submit">
-                        {t('parliament:save', 'Save')}
-                      </button>
-                      <button type="button" className="btn btnGhost" onClick={cancelEdit}>
-                        {t('parliament:cancel', 'Cancel')}
-                      </button>
-                    </div>
-                  </form>
                 )}
               </div>
             );
           })
         )}
       </div>
+
+      {/* Root composer (hide in readOnly) */}
+      {!readOnly && (
+        <form onSubmit={sendRoot} className={styles.mt10}>
+          <label className={styles.meta} style={{ display: 'block', marginBottom: 6 }}>
+            {t('parliament:addNoteAs', 'Add a note as')} <strong>{currentDisplayName}</strong>
+          </label>
+          <textarea
+            ref={inputRef}
+            rows={3}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t('parliament:openAndAddNotes', 'Open and add notes')}
+          />
+          <div className={styles.actions} style={{ marginTop: 8 }}>
+            <button className="btn btnPrimary" type="submit" disabled={sending}>
+              {sending ? t('parliament:sending', 'Sending…') : t('parliament:addNote', 'Add note')}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
