@@ -27,7 +27,7 @@ export default function Parliament() {
   const [myRejected, setMyRejected] = useState<ParliamentSubject[]>([]);
   const [editing, setEditing] = useState<ParliamentSubject | null>(null);
 
-  // NEW: subject opened in popup for full notes (add/edit/delete)
+  // subject opened in popup for full notes (add/edit/delete)
   const [current, setCurrent] = useState<ParliamentSubject | null>(null);
 
   const session = useMemo(() => {
@@ -92,20 +92,24 @@ export default function Parliament() {
     return () => unsub();
   }, [userUid]);
 
-  // Group approved subjects by date
-  const byDate = useMemo(() => {
-    const map = new Map<string, { date: ParliamentDate | null; items: ParliamentSubject[] }>();
+  // Group approved subjects by date and split into OPEN vs CLOSED
+  const { openGroups, closedGroups } = useMemo(() => {
+    type Group = { date: ParliamentDate | null; items: ParliamentSubject[] };
+    const map = new Map<string, Group>();
     for (const s of subjects) {
       const date = dates.find(d => d.id === s.dateId) || null;
-      const k = s.dateId;
+      const k = s.dateId || '__unknown__';
       if (!map.has(k)) map.set(k, { date, items: [] });
       map.get(k)!.items.push(s);
     }
-    return Array.from(map.values()).sort((a, b) => {
-      const ta = tsMillis(a.date?.date);
-      const tb = tsMillis(b.date?.date);
-      return ta - tb;
-    });
+    const all = Array.from(map.values());
+    const openGroups = all
+      .filter(g => g.date?.isOpen === true)
+      .sort((a, b) => tsMillis(a.date?.date) - tsMillis(b.date?.date));
+    const closedGroups = all
+      .filter(g => g.date?.isOpen !== true) // includes unknown date
+      .sort((a, b) => tsMillis(a.date?.date) - tsMillis(b.date?.date));
+    return { openGroups, closedGroups };
   }, [subjects, dates]);
 
   return (
@@ -123,14 +127,14 @@ export default function Parliament() {
         </h2>
       </div>
 
-      {/* Approved subjects (TOP) with inline read-only notes */}
+      {/* OPEN dates: Approved subjects (inline notes expanded) */}
       <section className={page.section}>
         <h3 className={page.sectionTitle}>{t('parliament:approvedSubjects', 'Approved subjects')}</h3>
-        {byDate.length === 0 ? (
+        {openGroups.length === 0 ? (
           <div className={page.empty}>{t('parliament:noApproved', 'No approved subjects yet.')}</div>
         ) : (
-          byDate.map(group => (
-            <div key={group.date?.id || 'unknown'} className={page.mb10}>
+          openGroups.map(group => (
+            <div key={group.date?.id || 'unknown-open'} className={page.mb10}>
               <div className={page.sectionTitle}>
                 {group.date?.title || t('parliament:unknownDate', 'Unknown date')}
               </div>
@@ -140,8 +144,10 @@ export default function Parliament() {
                     key={s.id}
                     subject={s}
                     inlineNotes
+                    /* expanded by default for OPEN */
+                    collapsedByDefault={false}
                     currentUser={user}
-                    onOpen={setCurrent}  // <-- click "💬 Discuss / Notes" opens popup
+                    onOpen={setCurrent}
                   />
                 ))}
               </div>
@@ -211,7 +217,36 @@ export default function Parliament() {
         </section>
       )}
 
-      {/* Popup modal to ADD / EDIT / DELETE notes on an approved subject */}
+      {/* CLOSED dates: at the very bottom, notes collapsed by default */}
+      <section className={page.section}>
+        <h3 className={page.sectionTitle}>{t('parliament:closedSectionTitle', 'Closed dates')}</h3>
+        {closedGroups.length === 0 ? (
+          <div className={page.empty}>{t('parliament:noClosed', 'No closed dates yet.')}</div>
+        ) : (
+          closedGroups.map(group => (
+            <div key={group.date?.id || 'unknown-closed'} className={page.mb10}>
+              <div className={page.sectionTitle}>
+                {group.date?.title || t('parliament:unknownDate', 'Unknown date')}
+              </div>
+              <div className={page.grid}>
+                {group.items.map(s => (
+                  <SubjectCard
+                    key={s.id}
+                    subject={s}
+                    inlineNotes
+                    /* collapsed by default for CLOSED */
+                    collapsedByDefault
+                    currentUser={user}
+                    onOpen={setCurrent}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </section>
+
+      {/* Popup modal to ADD / EDIT / DELETE notes on a subject */}
       {current && (
         <div className={page.modalBackdrop} onClick={() => setCurrent(null)}>
           <div className={page.modalPanel} onClick={(e)=>e.stopPropagation()}>
@@ -230,7 +265,6 @@ export default function Parliament() {
 
             <div className={page.mt10}>
               <section className={page.section}>
-                {/* Full-power notes thread (not readOnly) */}
                 <NotesThread subject={current} currentUser={user} />
               </section>
             </div>

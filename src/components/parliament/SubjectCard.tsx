@@ -13,7 +13,9 @@ type Props = {
   onOpen?: (s: ParliamentSubject) => void;
   /** When true, render a read-only notes thread inline. */
   inlineNotes?: boolean;
-  /** Pass current user if you want author names computed/fallbacks (not needed for read-only). */
+  /** Collapses inline notes initially when true (used for CLOSED dates). */
+  collapsedByDefault?: boolean;
+  /** Pass current user if needed for display fallbacks. */
   currentUser?: any;
 };
 
@@ -41,7 +43,13 @@ function fullNameFromProfile(p?: any): string | undefined {
   return undefined;
 }
 
-export default function SubjectCard({ subject, onOpen, inlineNotes = false, currentUser }: Props) {
+export default function SubjectCard({
+  subject,
+  onOpen,
+  inlineNotes = false,
+  collapsedByDefault = false,
+  currentUser
+}: Props) {
   const { t } = useTranslation(['parliament']);
 
   const initialAuthor =
@@ -52,6 +60,11 @@ export default function SubjectCard({ subject, onOpen, inlineNotes = false, curr
         : '';
 
   const [author, setAuthor] = useState<string>(initialAuthor);
+  const [expanded, setExpanded] = useState<boolean>(!collapsedByDefault);
+
+  useEffect(() => {
+    setExpanded(!collapsedByDefault);
+  }, [collapsedByDefault]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +113,8 @@ export default function SubjectCard({ subject, onOpen, inlineNotes = false, curr
     ? `${subject.notesCount} ${t('parliament:discuss', 'Discuss / Notes')}`
     : t('parliament:discuss', 'Discuss / Notes');
 
+  const showToggle = inlineNotes; // only show toggle when rendering inline notes
+
   return (
     <div className={styles.card}>
       <div className={styles.row} style={{ justifyContent: 'space-between' }}>
@@ -127,11 +142,29 @@ export default function SubjectCard({ subject, onOpen, inlineNotes = false, curr
         </button>
       </div>
 
-      {/* Inline read-only notes (just view) */}
-      {inlineNotes && (
-        <div style={{ marginTop: 12 }}>
-          <NotesThread subject={subject} currentUser={currentUser} readOnly />
-        </div>
+      {/* Inline read-only notes with collapsible toggle */}
+      {showToggle && (
+        <>
+          <div className={`${styles.actions} ${styles.mt8}`}>
+            <button
+              type="button"
+              className="btn btnGhost"
+              onClick={() => setExpanded(v => !v)}
+              title={expanded ? t('parliament:hideNotes','Hide notes')! : t('parliament:showNotes','Show notes')!}
+            >
+              {expanded
+                ? `▾ ${t('parliament:hideNotes','Hide notes')}`
+                : `▸ ${t('parliament:showNotes','Show notes')}${typeof subject.notesCount === 'number' ? ` (${subject.notesCount})` : ''}`
+              }
+            </button>
+          </div>
+
+          {expanded && (
+            <div className={styles.mt10}>
+              <NotesThread subject={subject} currentUser={currentUser} readOnly />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

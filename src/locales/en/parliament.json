@@ -21,6 +21,9 @@
   "unknownDate": "Unknown date",
   "noApproved": "No approved subjects yet.",
 
+  "closedSectionTitle": "Closed dates",
+  "noClosed": "No closed dates yet.",
+
   "discuss": "Discuss / Notes",
   "openAndAddNotes": "Open and add notes",
 
@@ -35,7 +38,12 @@
   "cancel": "Cancel",
   "deleteConfirmNote": "Delete this note?",
   "delete": "Delete",
-  "cannotMoveToClosed": "Cannot move subject to a closed date. Choose an open date.",
+  "reply": "Reply",
+  "addReplyAs": "Reply as",
+  "addReply": "Add reply",
+  "replyPlaceholder": "Write a reply",
+  "showNotes": "Show notes",
+  "hideNotes": "Hide notes",
   "adminTitle": "Parliament Admin",
   "queue": "Moderation queue",
   "approved": "Approved",
@@ -57,5 +65,9 @@
   "markRejected": "Mark Rejected",
   "rejectReason": "Reason for rejection:",
   "rejectedReason": "Reason",
-  "reason": "Reason"
+  "reason": "Reason",
+  "saveChanges": "Save changes",
+  "editSubject": "Edit subject",
+  "saveFailed": "Could not save changes",
+  "cannotMoveToClosed": "Cannot move subject to a closed date. Choose an open date."
 }

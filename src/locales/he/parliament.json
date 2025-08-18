@@ -21,6 +21,9 @@
   "unknownDate": "תאריך לא ידוע",
   "noApproved": "אין עדיין נושאים שאושרו.",
 
+  "closedSectionTitle": "תאריכים סגורים",
+  "noClosed": "אין תאריכים סגורים.",
+
   "discuss": "דיון / הערות",
   "openAndAddNotes": "פתח והוסף הערות",
 
@@ -35,7 +38,12 @@
   "cancel": "ביטול",
   "deleteConfirmNote": "למחוק את ההערה?",
   "delete": "מחיקה",
-  "cannotMoveToClosed": "לא ניתן להעביר נושא לתאריך סגור. בחרו תאריך פתוח.",
+  "reply": "השב",
+  "addReplyAs": "השב בשם",
+  "addReply": "הוסף תגובה",
+  "replyPlaceholder": "כתוב תגובה",
+  "showNotes": "הצג הערות",
+  "hideNotes": "הסתר הערות",
   "adminTitle": "ניהול פרלמנט",
   "queue": "ממתינים לאישור",
   "approved": "מאושרים",
@@ -58,8 +66,8 @@
   "rejectReason": "סיבת הדחייה:",
   "rejectedReason": "סיבה",
   "reason": "סיבה",
-  "reply": "השב",
-  "addReplyAs": "השב בשם",
-  "addReply": "הוסף תגובה",
-  "replyPlaceholder": "כתוב תגובה"
+  "saveChanges": "שמירת שינויים",
+  "editSubject": "עריכת נושא",
+  "saveFailed": "לא ניתן לשמור את השינויים",
+  "cannotMoveToClosed": "לא ניתן להעביר נושא לתאריך סגור. בחרו תאריך פתוח."
 }
